@@ -1,17 +1,18 @@
-function convert_lws_csv(inputPath, outputPath)
-    % CONVERT_LWS_CSV Converts LWS files to CSV format.
-    %
-    % Args:
-    %   inputPath (char): Path to a single .lws file or a directory 
-    %                     containing .lws files.
-    %   outputPath (char): Path to the output .csv file (if input is a file)
-    %                      or a directory to save .csv files (if input is a 
-    %                      directory).
-    %
-    % Usage:
-    %   convert_lws_csv('my_data.lws', 'my_data.csv');
-    %   convert_lws_csv('my_data.lws', 'output_folder/');
-    %   convert_lws_csv('input_lws_directory/', 'output_csv_directory/');
+% lws_to_csv.m
+%
+% Converts LWS files to CSV format.
+%
+% Author: Nathaniel Fargo
+% Date: 2025-05-20
+% Org: U of U WIRED 
+%
+% Usage:
+%   lws_to_csv('my_data.lws', 'my_data.csv');
+%   lws_to_csv('my_data.lws', 'output_folder/');
+%   lws_to_csv('input_lws_directory/', 'output_csv_directory/');
+
+
+function lws_to_csv(inputPath, outputPath)
 
     if isfolder(inputPath)
         % Input is a directory
