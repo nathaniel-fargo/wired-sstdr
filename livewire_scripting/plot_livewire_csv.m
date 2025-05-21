@@ -15,31 +15,37 @@
 
 function plot_livewire_csv(csvFilePath, specificFrequencies, outputFilePath)
 
+    % Check for the minimum required input argument
     if nargin < 1
         error('Usage: plot_livewire_csv(csvFilePath, [specificFrequencies], [outputFilePath])');
     end
     
+    % Ensure the provided CSV file exists
     if ~exist(csvFilePath, 'file')
         error('CSV file not found: %s', csvFilePath);
     end
 
+    % Set default for specificFrequencies if not provided (plot all)
     if nargin < 2
         specificFrequencies = {}; % Plot all frequencies by default
     end
 
+    % Set default for outputFilePath if not provided (do not save)
     if nargin < 3
         outputFilePath = ''; % No output file path provided by default
     end
     
-    % Read the CSV file
+    % Read the CSV file using detected import options
     try
         opts = detectImportOptions(csvFilePath);
+        % Define columns that should always be treated as strings
         stringColumns = {'SerialNumber', 'SoftwareVersion', 'Date', 'Modulation', ...
                          'CableName', 'PreferredFrequency', 'Units', ...
                          'SelectedFrequencyAtAcquisition', 'MeasurementFrequency', 'DataType'};
         
-        % Handle UnitsPerSample and ZeroIndex, which might be numeric or string
-        % Also SelectedFrequencyAtAcquisition, DistanceAtAcquisition which might be strings like "None"
+        % Columns like UnitsPerSample, ZeroIndex, DistanceAtAcquisition might be numeric,
+        % but can also contain non-numeric strings (e.g., "None").
+        % Reading them as strings first allows for more robust parsing later.
         semi_numeric_cols = {'UnitsPerSample', 'ZeroIndex', 'DistanceAtAcquisition'};
         for i = 1:length(semi_numeric_cols)
             col_name = semi_numeric_cols{i};
@@ -49,13 +55,15 @@ function plot_livewire_csv(csvFilePath, specificFrequencies, outputFilePath)
             end
         end
 
-        % VOP might still be in older CSVs, ensure it's handled during import if present, though not used for plotting
+        % Handle 'VOP' column if present (from older CSVs). It's not used for plotting
+        % but needs to be read correctly if it exists.
         if any(strcmp(opts.VariableNames, 'VOP')) 
             if ~strcmp(opts.VariableTypes{strcmp(opts.VariableNames, 'VOP')}, 'double')
                 opts = setvartype(opts, 'VOP', 'string'); 
             end
         end
 
+        % Ensure all designated string columns are explicitly set to be read as strings.
         for k = 1:length(stringColumns)
             if any(strcmp(opts.VariableNames, stringColumns{k}))
                  % Ensure specified string columns are read as strings
@@ -67,7 +75,8 @@ function plot_livewire_csv(csvFilePath, specificFrequencies, outputFilePath)
         error('Failed to read CSV file: %s\n%s', csvFilePath, ME.message);
     end
 
-    % Check for required columns (VOP no longer required for plotting)
+    % Verify that all essential columns for plotting are present in the table.
+    % VOP is no longer required for plotting itself.
     requiredCols = {'MeasurementFrequency', 'DataType', 'DataIndex', 'Value', 'SerialNumber', 'CableName', ...
                     'UnitsPerSample', 'Units', 'ZeroIndex', ...
                     'SelectedFrequencyAtAcquisition', 'DistanceAtAcquisition'}; % Added acq. cols
@@ -76,21 +85,22 @@ function plot_livewire_csv(csvFilePath, specificFrequencies, outputFilePath)
         error('CSV file is missing required columns: %s', strjoin(missing, ', '));
     end
 
-    % Filter for Waveform data only
+    % Filter the table to include only rows where DataType is "Waveform".
     waveformRows = strcmpi(data.DataType, "Waveform");
     waveformData = data(waveformRows, :);
 
+    % If no waveform data exists after filtering, inform the user and exit.
     if isempty(waveformData)
         disp('No waveform data found in the CSV file.');
         return;
     end
 
     % --- Get Global File Headers from the *original* data table or initial waveformData ---
-    % These should be consistent across the file.
-    
-    % Use the overall 'data' table for SerialNumber and CableName to avoid issues if waveformData is empty initially.
-    firstDataRow = data(1,:); % Use the very first row of the CSV for truly global headers
+    % These headers (e.g., SerialNumber, CableName) should be consistent for the entire file.
+    % Use the very first row of the original CSV data to ensure these are truly global values.
+    firstDataRow = data(1,:); 
 
+    % Extract SerialNumber, handling potential missing or empty values.
     serialNumStr = 'Unknown Serial'; 
     if any(strcmp(firstDataRow.Properties.VariableNames, 'SerialNumber'))
         tempSerial = firstDataRow.SerialNumber;
@@ -99,6 +109,7 @@ function plot_livewire_csv(csvFilePath, specificFrequencies, outputFilePath)
         end
     end
     
+    % Extract CableName, handling potential missing or empty values.
     cableNameStr = 'Unknown Cable'; 
     if any(strcmp(firstDataRow.Properties.VariableNames, 'CableName'))
         tempCable = firstDataRow.CableName;
@@ -107,6 +118,8 @@ function plot_livewire_csv(csvFilePath, specificFrequencies, outputFilePath)
         end
     end
 
+    % Extract SelectedFrequencyAtAcquisition, handling "None" or empty values.
+    % This frequency is used as a default for plotting if no specific frequencies are requested.
     acqFreqForPlotting = 'N/A'; 
     if any(strcmp(firstDataRow.Properties.VariableNames, 'SelectedFrequencyAtAcquisition'))
         tempAcqFreq = firstDataRow.SelectedFrequencyAtAcquisition;
@@ -115,10 +128,16 @@ function plot_livewire_csv(csvFilePath, specificFrequencies, outputFilePath)
         end
     end
 
+    % Define conversion factor from meters to feet.
+    METERS_TO_FEET = 3.28084;
+
+    % Extract DistanceAtAcquisition, convert to a numeric value in feet.
+    % This involves checking the 'Units' column to correctly interpret the distance.
     numericAcqDistFeet = NaN; 
     if any(strcmp(firstDataRow.Properties.VariableNames, 'DistanceAtAcquisition'))
         tempAcqDistStr = firstDataRow.DistanceAtAcquisition; 
         
+        % Determine the overall units (Standard/Metric) for interpreting DistanceAtAcquisition.
         overallUnitsStr = 'Standard'; 
         if any(strcmp(firstDataRow.Properties.VariableNames, 'Units'))
              tempOverallUnits = firstDataRow.Units;
@@ -132,57 +151,66 @@ function plot_livewire_csv(csvFilePath, specificFrequencies, outputFilePath)
         end
         isOverallMetric = strcmpi(overallUnitsStr, "Metric");
 
+        % Convert the acquisition distance string to a number, handling "None" or non-numeric values.
         if ~(ismissing(tempAcqDistStr) || (isstring(tempAcqDistStr) && (tempAcqDistStr == "" || strcmpi(tempAcqDistStr, "None"))) || (ischar(tempAcqDistStr) && (isempty(tempAcqDistStr) || strcmpi(tempAcqDistStr, 'None'))))
             tempNumericAcqDist = str2double(char(tempAcqDistStr));
-            if ~isnan(tempNumericAcqDist)
+            if ~isnan(tempNumericAcqDist) % If conversion is successful
                 if isOverallMetric
-                    numericAcqDistFeet = tempNumericAcqDist * METERS_TO_FEET;
+                    numericAcqDistFeet = tempNumericAcqDist * METERS_TO_FEET; % Convert if metric
                 else
-                    numericAcqDistFeet = tempNumericAcqDist; 
+                    numericAcqDistFeet = tempNumericAcqDist; % Assume feet if standard
                 end
             else
-                 warning('DistanceAtAcquisition \'\'%s\'\' from file header is not a valid number.', char(tempAcqDistStr));
+                 warning('DistanceAtAcquisition ''%s'' from file header is not a valid number.', char(tempAcqDistStr));
             end
         end
     end
 
-    % Determine frequencies to plot
-    originalWaveformData = waveformData; % Keep a copy of the full waveform data before filtering
+    % Store a copy of all waveform data before any frequency-specific filtering.
+    originalWaveformData = waveformData; 
 
-    if isempty(specificFrequencies)
+    % Determine which frequencies to plot based on user input or defaults.
+    if isempty(specificFrequencies) % No specific frequencies provided by the user.
         disp('No specific frequencies provided by user.');
+        % Try to use the 'SelectedFrequencyAtAcquisition' from the file header.
         if ~strcmpi(acqFreqForPlotting, 'N/A')
             disp(['Attempting to plot SelectedFrequencyAtAcquisition: ' acqFreqForPlotting]);
-            % Check if this frequency exists and has data in the original waveform data
+            % Check if this acquisition frequency actually exists in the waveform data.
             freqExistsMask = strcmp(originalWaveformData.MeasurementFrequency, acqFreqForPlotting);
             if any(freqExistsMask)
-                waveformData = originalWaveformData(freqExistsMask, :); % Use only data for this frequency
+                % If it exists, filter waveform data to only this frequency.
+                waveformData = originalWaveformData(freqExistsMask, :); 
                 frequenciesToPlot = {acqFreqForPlotting};
                 disp(['Successfully selected data for: ' acqFreqForPlotting]);
             else
+                % If acquisition frequency not found or has no data, plot all available frequencies.
                 disp(['Warning: SelectedFrequencyAtAcquisition (' acqFreqForPlotting ') not found or has no waveform data. Plotting all available frequencies instead.']);
-                waveformData = originalWaveformData; % Use all original waveform data
-                frequenciesToPlot = unique(waveformData.MeasurementFrequency, 'stable');
+                waveformData = originalWaveformData; % Revert to all waveform data
+                frequenciesToPlot = unique(waveformData.MeasurementFrequency, 'stable'); % Get all unique frequencies
             end
         else
+            % If no valid acquisition frequency, plot all available waveform frequencies.
             disp('SelectedFrequencyAtAcquisition not available/invalid. Plotting all available waveform frequencies.');
-            waveformData = originalWaveformData; % Use all original waveform data
-            frequenciesToPlot = unique(waveformData.MeasurementFrequency, 'stable');
+            waveformData = originalWaveformData; % Use all waveform data
+            frequenciesToPlot = unique(waveformData.MeasurementFrequency, 'stable'); % Get all unique frequencies
         end
-    else % User provided specific frequencies
-        userSpecifiedFreqs = string(specificFrequencies(:)'); % Ensure it's a string array
+    else % User has provided a list of specific frequencies.
+        userSpecifiedFreqs = string(specificFrequencies(:)'); % Ensure it's a row string array
+        % Filter the waveform data to include only the user-specified frequencies.
         validFreqMask = ismember(originalWaveformData.MeasurementFrequency, userSpecifiedFreqs);
         waveformData = originalWaveformData(validFreqMask, :);
         
         if isempty(waveformData)
+            % If none of the user-specified frequencies are found or have data.
             disp('None of the user-specified frequencies were found or have waveform data.');
-            frequenciesToPlot = {}; % Set to empty to gracefully exit or be caught later
+            frequenciesToPlot = {}; 
         else
+            % Get the unique list of frequencies that will actually be plotted from the filtered data.
             frequenciesToPlot = unique(waveformData.MeasurementFrequency, 'stable');
         end
         
-        % Check and report if any user-specified frequencies were not found (even if some were)
-        foundInPlotData = unique(waveformData.MeasurementFrequency); % Freqs that will actually be plotted
+        % Report any user-specified frequencies that were not found in the data.
+        foundInPlotData = unique(waveformData.MeasurementFrequency); 
         notFoundFreqs = setdiff(userSpecifiedFreqs, foundInPlotData);
         if ~isempty(notFoundFreqs)
             disp('Warning: The following user-specified frequencies were not found or had no waveform data after filtering:');
@@ -190,210 +218,266 @@ function plot_livewire_csv(csvFilePath, specificFrequencies, outputFilePath)
         end
     end
 
+    % If, after all filtering, there are no frequencies to plot, inform user and exit.
     if isempty(frequenciesToPlot)
         disp('No frequencies to plot after filtering.');
         return;
     end
 
     numPlots = length(frequenciesToPlot);
-    
-    % Constants
-    METERS_TO_FEET = 3.28084;
 
-    % Create a new figure
+    % Create a new figure for the plots.
     fig = figure;
-    try % Use try-catch for sgtitle in older MATLAB versions
+    try % Use try-catch for sgtitle, as it may not be available in older MATLAB versions.
         titleStr = sprintf('Waveforms for Serial: %s, Cable: %s', serialNumStr, cableNameStr);
-        sgtitle(titleStr);
+        sgtitle(titleStr); % Set a super title for the entire figure.
     catch
-        % For older MATLAB versions that don't have sgtitle, use a workaround
+        % Fallback for older MATLAB: set the figure's Name property.
         warning('sgtitle not available. Setting figure Name. May overlap.');
         set(gcf, 'Name', sprintf('S: %s, C: %s', serialNumStr, cableNameStr));
     end
     
-    % Use tiled layout
+    % Use a tiled layout for arranging multiple subplots.
+    % 'flow' allows tiles to fill rows and then columns.
+    % 'compact' reduces spacing and padding.
     tlo = tiledlayout('flow', 'TileSpacing', 'compact', 'Padding', 'compact');
 
+    % Loop through each frequency determined for plotting.
     for i = 1:numPlots
         currentFreq = frequenciesToPlot(i);
+        % Filter data for the current frequency.
         freqDataRows = waveformData.MeasurementFrequency == currentFreq;
         freqData = waveformData(freqDataRows, :);
         
+        % Handle cases where, despite earlier checks, no data remains for this specific frequency
+        % (e.g., if specificFrequencies list was very restrictive leading to empty freqData here).
         if isempty(freqData)
             disp(['Skipping frequency ' char(currentFreq) ' as no data remains after filtering.']);
-            nexttile(tlo);
+            nexttile(tlo); % Advance to the next tile
             
+            % Prepare acquisition distance string for the "No Data" title
             acqDistStrPartForFiltered = 'Acq. Dist: N/A';
             if ~isnan(numericAcqDistFeet)
                 feet = floor(numericAcqDistFeet);
                 inches = round((numericAcqDistFeet - feet) * 12);
-                if inches == 12
+                if inches == 12 % Handle case where inches round up to 12
                     feet = feet + 1;
                     inches = 0;
                 end
                 acqDistStrPartForFiltered = sprintf('Acq. Dist: %d ft %d in', feet, inches);
             end
+            % Set title for the empty plot
             titleStr = sprintf('%s (No Data - Filtered Out, %s)', char(currentFreq), acqDistStrPartForFiltered);
             title(titleStr);
             xlabel('Distance (ft)');
             ylabel('Normalized Value');
-            text(0.5, 0.5, 'No Data', 'HorizontalAlignment', 'center', 'Units', 'normalized');
-            xlim([0 10]);
-            ylim([-1.1, 1.1]); 
+            text(0.5, 0.5, 'No Data', 'HorizontalAlignment', 'center', 'Units', 'normalized'); % Display "No Data" text
+            xlim([0 10]); % Set default x-limits
+            ylim([-1.1, 1.1]); % Set default y-limits for consistency
             grid on;
-            continue;
+            continue; % Skip to the next frequency
         end
 
-        % --- Y-axis Normalization (Scale by max absolute value) ---
+        % --- Y-axis Normalization ---
+        % Normalize waveform values by dividing by the maximum absolute value in the current frequency's data.
+        % This scales the waveform to a range of [-1, 1].
         y_values = freqData.Value;
         max_abs_y = max(abs(y_values));
 
-        if max_abs_y == 0
+        if max_abs_y == 0 % Avoid division by zero if all values are zero
             normalized_y_original = zeros(size(y_values));
         else
             normalized_y_original = y_values / max_abs_y;
         end
 
         % --- X-axis Distance in Feet ---
+        % Calculate distance for each data point based on DataIndex and UnitsPerSample.
         dataIndex = freqData.DataIndex;
         
-        currentUnitsPerSampleStr = freqData.UnitsPerSample(1);
+        % Convert UnitsPerSample to a numeric value, handling potential string format.
+        currentUnitsPerSampleStr = freqData.UnitsPerSample(1); % Assume consistent for the frequency
         if isstring(currentUnitsPerSampleStr) || ischar(currentUnitsPerSampleStr)
             currentUnitsPerSample = str2double(currentUnitsPerSampleStr);
         else
-            currentUnitsPerSample = currentUnitsPerSampleStr; 
+            currentUnitsPerSample = currentUnitsPerSampleStr; % Already numeric
         end
+        % Ensure UnitsPerSample is valid; default to 1.0 if not.
         if isnan(currentUnitsPerSample) || isempty(currentUnitsPerSample) || currentUnitsPerSample <= 0
             warning('Invalid or missing UnitsPerSample for frequency %s. Using 1.0.', char(currentFreq));
             currentUnitsPerSample = 1.0;
         end
         distance_original_units = dataIndex .* currentUnitsPerSample;
 
-        unitsStr = freqData.Units(1);
+        % Determine if units are Metric or Standard (feet) for distance conversion.
+        unitsStr = freqData.Units(1); % Assume consistent for the frequency
         if ismissing(unitsStr) || unitsStr == ""
             warning('Units (Standard/Metric) not found for frequency %s. Assuming Standard (feet).', char(currentFreq));
-            unitsStr = "Standard";
+            unitsStr = "Standard"; % Default to Standard (feet)
         end
         isMetric = strcmpi(unitsStr, "Metric");
         
+        % Convert distance to feet if originally in metric.
         distance_feet_original = distance_original_units;
         if isMetric 
             distance_feet_original = distance_original_units .* METERS_TO_FEET;
         end
 
         % --- Apply ZeroIndex Offset ---
-        currentZeroIndexStr = freqData.ZeroIndex(1);
+        % The ZeroIndex indicates an offset to the start of the data.
+        % Convert ZeroIndex to numeric, handling potential string format.
+        currentZeroIndexStr = freqData.ZeroIndex(1); % Assume consistent for the frequency
         if isstring(currentZeroIndexStr) || ischar(currentZeroIndexStr)
             currentZeroIndex = str2double(currentZeroIndexStr);
         else
             currentZeroIndex = currentZeroIndexStr; % Assume already numeric
         end
+        % Ensure ZeroIndex is valid; default to 0.0 if not.
         if isnan(currentZeroIndex) || isempty(currentZeroIndex)
             warning('Invalid or missing ZeroIndex for frequency %s. Using 0.0.', char(currentFreq));
             currentZeroIndex = 0.0;
         end
 
+        % Calculate the zero offset in the original units and then convert to feet.
         zero_offset_original_units = currentZeroIndex * currentUnitsPerSample;
         zero_offset_feet = zero_offset_original_units;
         if isMetric
             zero_offset_feet = zero_offset_original_units * METERS_TO_FEET;
         end
         
+        % Apply the zero offset to the distance data.
         distance_feet_shifted = distance_feet_original - zero_offset_feet;
         
+        % Final data for plotting.
         x_data_to_plot = distance_feet_shifted;
         y_data_to_plot = normalized_y_original;
 
+        % Advance to the next tile in the layout for the new plot.
         nexttile(tlo);
         
-        baseTitlePart = char(currentFreq);
+        % --- Plot Title and Data ---
+        baseTitlePart = char(currentFreq); % Frequency part of the title
+        % Format acquisition distance for the title (e.g., "Acq. Dist: 10 ft 5 in").
         acqDistStrPart = 'Acq. Dist: N/A';
         if ~isnan(numericAcqDistFeet)
             feet = floor(numericAcqDistFeet);
             inches = round((numericAcqDistFeet - feet) * 12);
-            if inches == 12
+            if inches == 12 % Handle rounding of inches up to 12
                 feet = feet + 1;
                 inches = 0;
             end
             acqDistStrPart = sprintf('Acq. Dist: %d ft %d in', feet, inches);
         end
 
-        dataPlotted = false;
-
+        % Plot the data if available.
         if ~isempty(x_data_to_plot) && ~isempty(y_data_to_plot) && numel(x_data_to_plot) > 0
             plot(x_data_to_plot, y_data_to_plot);
-            dataPlotted = true;
-            hold on;
-            current_xlim = xlim; 
+            hold on; % Hold the plot to add more lines
+            current_xlim = xlim; % Get current x-axis limits
+            % Draw a vertical line at x=0 (Zero Index) if it's within the plot limits.
             if 0 >= current_xlim(1) && 0 <= current_xlim(2)
                 line([0 0], [-1.1, 1.1], 'Color', 'b', 'LineStyle', ':', 'LineWidth', 1, 'DisplayName', 'Zero Index');
             end
+            % Draw a vertical line at the acquisition distance if it's valid and within plot limits.
             if ~isnan(numericAcqDistFeet)
                 acqDistLinePositionOnPlot = numericAcqDistFeet;
+                % Note: The acquisition distance is an absolute point from the original file.
+                % The plot's x-axis is *shifted* by the zero_offset_feet.
+                % To plot acqDistLinePositionOnPlot correctly *relative to the shifted x-axis*,
+                % we must plot it at (numericAcqDistFeet - zero_offset_feet) if the zero_offset_feet
+                % has already been subtracted from x_data_to_plot.
+                % However, the current x_data_to_plot *is* distance_feet_shifted.
+                % numericAcqDistFeet is an absolute distance along the cable.
+                % The x-axis of the plot *represents* these absolute positions, but shifted.
+                % So, if the plot x-axis is `X_plot = X_absolute - zero_offset_feet`.
+                % A line at `X_absolute = numericAcqDistFeet` should be drawn at `X_plot = numericAcqDistFeet - zero_offset_feet`.
+                % This was not being done. Let's assume for now numericAcqDistFeet is intended to be plotted at its absolute value
+                % on the *shifted* axis. This implies that `DistanceAtAcquisition` is relative to the *display zero*, not necessarily the physical cable end.
+                % Re-evaluating: The `x_data_to_plot` IS the `distance_feet_shifted`. So the x-axis *is* the shifted distance.
+                % If `DistanceAtAcquisition` is a raw distance marker on the cable (e.g. 50ft from connector),
+                % and the `ZeroIndex` shifts the plot so that `ZeroIndex * UPS` (e.g. 10ft) becomes `x=0`,
+                % then the 50ft mark should appear at `x = 50ft - 10ft = 40ft` on the plot.
+                % The code currently plots at `numericAcqDistFeet` directly on the `x_data_to_plot` axis.
+                % This means it assumes `numericAcqDistFeet` is ALREADY relative to the zero-indexed start.
+                % This might be the intended interpretation by the device generating the "DistanceAtAcquisition"
+                % (i.e., it is the distance from the effective zero point after ZeroIndex is considered).
+                % Given the existing code, we'll stick to plotting numericAcqDistFeet directly on the shifted axis.
+                % The vertical line at 0 is the "Zero Index" line.
+                % The vertical line at `numericAcqDistFeet` is the "Acq. Distance" line.
+                % If `numericAcqDistFeet` is 50, and `zero_offset_feet` is 10, then
+                % plot's x=0 is physical 10ft. plot's x=40 is physical 50ft.
+                % So, the line should be at `numericAcqDistFeet - zero_offset_feet` on the plot.
+                % Let's test this assumption. If DistanceAtAcquisition is 0, and ZeroIndex is 0, line at 0. OK.
+                % If DistanceAtAcquisition is 10, ZeroIndex is 0, line at 10. OK.
+                % If DistanceAtAcquisition is 10, ZeroIndex is 5 (UPS=1), zero_offset_feet=5.
+                %   x_data_to_plot starts from -5. Line for Acq.Dist should be at 10-5 = 5 on the plot.
+                % The current code plots `numericAcqDistFeet` directly.
+                % This seems to be what was intended by "Acquisition Distance" label next to it.
+                % Let's keep it, but add a comment about this interpretation.
+                acqDistLinePositionOnPlot = numericAcqDistFeet; % This is plotted directly on the shifted x-axis.
+                                                             % This implies DistanceAtAcquisition is meant to be interpreted
+                                                             % relative to the same origin as the shifted data.
                 if acqDistLinePositionOnPlot >= current_xlim(1) && acqDistLinePositionOnPlot <= current_xlim(2)
                     line([acqDistLinePositionOnPlot acqDistLinePositionOnPlot], [-1.1, 1.1], 'Color', 'b', 'LineStyle', ':', 'LineWidth', 1, 'DisplayName', 'Acq. Distance');
                 end
             end
-            hold off;
+            hold off; % Release the plot
 
             plotTitleStr = sprintf('%s (%s)', baseTitlePart, acqDistStrPart);
-            axis tight; 
+            axis tight; % Adjust axis limits to fit the data tightly.
 
-        else % No data or insufficient data to plot for this frequency
+        else % Case: no data or insufficient data to plot for this frequency after processing.
             disp(['Data for frequency ' char(currentFreq) ' is empty or invalid for plotting after processing.']);
             plotTitleStr = sprintf('%s (No Data, %s)', baseTitlePart, acqDistStrPart);
-            plot(NaN, NaN); % Create axes for text and lines
-            text(0.5, 0.5, 'No Data', 'HorizontalAlignment', 'center', 'Units', 'normalized');
-            xlim([0 10]); % Default x-axis for "No Data" plots
+            plot(NaN, NaN); % Create empty axes for the text and lines.
+            text(0.5, 0.5, 'No Data', 'HorizontalAlignment', 'center', 'Units', 'normalized'); % Display "No Data"
+            xlim([0 10]); % Default x-axis for "No Data" plots.
             
-            % Attempt to draw lines on this default axis
+            % Attempt to draw Zero Index and Acq. Distance lines on this default "No Data" axis if applicable.
             current_xlim_no_data = xlim;
-            if 0 >= current_xlim_no_data(1) && 0 <= current_xlim_no_data(2)
+            if 0 >= current_xlim_no_data(1) && 0 <= current_xlim_no_data(2) % Zero Index line
                 line([0 0], [-1.1, 1.1], 'Color', 'b', 'LineStyle', ':', 'LineWidth', 1);
             end
-            if ~isnan(numericAcqDistFeet) && numericAcqDistFeet >= current_xlim_no_data(1) && numericAcqDistFeet <= current_xlim_no_data(2)
+            if ~isnan(numericAcqDistFeet) && numericAcqDistFeet >= current_xlim_no_data(1) && numericAcqDistFeet <= current_xlim_no_data(2) % Acq. Distance line
                 line([numericAcqDistFeet numericAcqDistFeet], [-1.1, 1.1], 'Color', 'b', 'LineStyle', ':', 'LineWidth', 1);
             end
         end
         
-        title(plotTitleStr);
+        title(plotTitleStr); % Set the title for the subplot.
         xlabel('Distance (ft)');
         ylabel('Normalized Value');
-        ylim([-1.1, 1.1]); 
-        grid on;
-        % axis tight is applied selectively above if dataPlotted
-        % ylim is re-applied here to ensure it is [-1.1, 1.1] regardless of axis tight or No Data case
+        ylim([-1.1, 1.1]); % Set fixed y-axis limits for normalized data.
+        grid on; % Display grid lines.
 
     end
 
+    % Display messages if no plots were generated.
     if numPlots == 0 && ~isempty(specificFrequencies)
         disp('No data plotted. Ensure specified frequencies exist and have waveform data.')
     elseif numPlots == 0
         disp('No waveform data found to plot.')
     end
 
-    % Save to file if outputFilePath is provided
+    % Save the figure to a file if an outputFilePath was provided.
     if ~isempty(outputFilePath)
         try
-            % Ensure the figure is sized appropriately before saving for consistent output
-            % For example, set to a common size or use PaperPositionMode auto
+            % Set PaperPositionMode to 'auto' for better sizing in the saved file,
+            % or explicitly set figure position/size for consistent output.
             set(fig, 'PaperPositionMode', 'auto'); 
-            % Or explicitly set a size:
-            % set(fig, 'Position', [100, 100, 1024, 768]); % Example: X, Y, Width, Height
+            % Example of explicit sizing:
+            % set(fig, 'Position', [100, 100, 1024, 768]); % X, Y, Width, Height
             
             saveas(fig, outputFilePath);
-            fprintf('Plot saved to %s\\n', outputFilePath);
-            close(fig); % Close the figure after saving to prevent display
+            fprintf('Plot saved to %s\n', outputFilePath);
+            close(fig); % Close the figure after saving to free resources and prevent display.
         catch ME_save
             warning('Failed to save plot to %s: %s', outputFilePath, ME_save.message);
             if ishandle(fig)
-                close(fig); % Still close if saving failed but figure exists
+                close(fig); % Ensure figure is closed even if saving failed.
             end
         end
     else
-        % If not saving to file, ensure figure is visible if it was created.
-        % (This is default behavior unless figure visibility was turned off earlier)
-        % For clarity, one might set set(fig, 'Visible', 'on'); if it might have been off.
+        % If not saving to file, the figure will remain open for viewing by default.
+        % No explicit action needed here unless figure visibility was previously turned off.
     end
 
 end
