@@ -1,6 +1,8 @@
 # Branch Tests
 
-Today we're starting to build larger branch networks and analyze the data that comes out of it. This file explains the notation used in `branch_networks.csv`
+## Syntax Overview
+
+Today we're starting to build larger branch networks and analyze the data that comes out of it. This file explains the notation used in files such as `./2025-05-21/branch_networks.csv`
 
 Syntax is
 
@@ -47,8 +49,11 @@ They're all the same network
 
 This format should be easily parseable by code for further analysis.
 
+### Extensions
+
 In the event of a 4-way split, one can just list an additional wire split-off, like `{A00{B00}{C00}{D00}}`, but this usage is unlikely and not guarenteed to be supported.
-This syntax does not support loops, and likely neither will the code, however it should be extensible to add features on wires, such as open/close signals.
+
+This syntax does not support loops, and likely neither will any code, however it should be extensible to add features on wires, such as open/short signals.
 
 `{A00{B00[S]}}{A01{B01[O]}{B02[T]}}}`
 
