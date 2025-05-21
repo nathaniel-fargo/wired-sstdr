@@ -1,4 +1,4 @@
-% batch_plot_livewire_csvs.m
+% batch_plot_livewire_csv.m
 %
 % Processes all CSV files in a specified input directory, generates plots
 % using plot_livewire_csv, and saves them as PNG files in an output directory.
@@ -11,10 +11,10 @@
 %   batch_plot_livewire_csvs('path/to/csv_folder', 'path/to/png_output_folder');
 
 
-function batch_plot_livewire_csvs(inputCsvDir, outputPngDir)
+function batch_plot_livewire_csv(inputCsvDir, outputPngDir)
 
     if nargin < 2
-        error('Usage: batch_plot_livewire_csvs(inputCsvDir, outputPngDir)');
+        error('Usage: batch_plot_livewire_csv(inputCsvDir, outputPngDir)');
     end
 
     if ~exist(inputCsvDir, 'dir')

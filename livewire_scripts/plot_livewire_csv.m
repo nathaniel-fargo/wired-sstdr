@@ -379,7 +379,6 @@ function plot_livewire_csv(csvFilePath, specificFrequencies, outputFilePath)
             end
             % Draw a vertical line at the acquisition distance if it's valid and within plot limits.
             if ~isnan(numericAcqDistFeet)
-                acqDistLinePositionOnPlot = numericAcqDistFeet;
                 % Note: The acquisition distance is an absolute point from the original file.
                 % The plot's x-axis is *shifted* by the zero_offset_feet.
                 % To plot acqDistLinePositionOnPlot correctly *relative to the shifted x-axis*,
