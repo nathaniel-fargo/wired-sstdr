@@ -12,12 +12,13 @@
 %   plot_livewire_csv('path/to/your_data.csv', {'48 MHz', '12 MHz'}); % Display specific freqs
 %   plot_livewire_csv('path/to/your_data.csv', {}, 'path/to/output.png'); % Save plot with default freqs
 %   plot_livewire_csv('path/to/your_data.csv', {'48 MHz'}, 'path/to/output.png'); % Save specific freq
+%   plot_livewire_csv(..., ax_handle); % Plot to a given axes handle
 
-function plot_livewire_csv(csvFilePath, specificFrequencies, outputFilePath)
+function fig_handle = plot_livewire_csv(csvFilePath, specificFrequencies, outputFilePath, ax_handle)
 
     % Check for the minimum required input argument
     if nargin < 1
-        error('Usage: plot_livewire_csv(csvFilePath, [specificFrequencies], [outputFilePath])');
+        error('Usage: plot_livewire_csv(csvFilePath, [specificFrequencies], [outputFilePath], [ax_handle])');
     end
     
     % Ensure the provided CSV file exists
@@ -33,6 +34,9 @@ function plot_livewire_csv(csvFilePath, specificFrequencies, outputFilePath)
     % Set default for outputFilePath if not provided (do not save)
     if nargin < 3
         outputFilePath = ''; % No output file path provided by default
+    end
+    if nargin < 4
+        ax_handle = []; % Default to no axes handle
     end
     
     % Read the CSV file using detected import options
@@ -92,6 +96,17 @@ function plot_livewire_csv(csvFilePath, specificFrequencies, outputFilePath)
     % If no waveform data exists after filtering, inform the user and exit.
     if isempty(waveformData)
         disp('No waveform data found in the CSV file.');
+        if ~isempty(ax_handle) && isgraphics(ax_handle, 'axes')
+            text(ax_handle, 0.5, 0.5, 'No waveform data found', 'HorizontalAlignment', 'center');
+            fig_handle = get(ax_handle, 'Parent');
+        else
+            fig_handle = figure; % Create an empty figure to return
+            text(0.5, 0.5, 'No waveform data found', 'HorizontalAlignment', 'center');
+            if ~isempty(outputFilePath)
+                saveas(fig_handle, outputFilePath);
+                close(fig_handle);
+            end
+        end
         return;
     end
 
@@ -221,26 +236,52 @@ function plot_livewire_csv(csvFilePath, specificFrequencies, outputFilePath)
     % If, after all filtering, there are no frequencies to plot, inform user and exit.
     if isempty(frequenciesToPlot)
         disp('No frequencies to plot after filtering.');
+        if ~isempty(ax_handle) && isgraphics(ax_handle, 'axes')
+            text(ax_handle, 0.5, 0.5, 'No frequencies to plot', 'HorizontalAlignment', 'center');
+            fig_handle = get(ax_handle, 'Parent');
+        else
+            fig_handle = figure; % Create an empty figure to return
+            text(0.5, 0.5, 'No frequencies to plot', 'HorizontalAlignment', 'center');
+            if ~isempty(outputFilePath)
+                saveas(fig_handle, outputFilePath);
+                close(fig_handle);
+            end
+        end
         return;
     end
 
-    numPlots = length(frequenciesToPlot);
-
-    % Create a new figure for the plots.
-    fig = figure;
-    try % Use try-catch for sgtitle, as it may not be available in older MATLAB versions.
-        titleStr = sprintf('Waveforms for Serial: %s, Cable: %s', serialNumStr, cableNameStr);
-        sgtitle(titleStr); % Set a super title for the entire figure.
-    catch
-        % Fallback for older MATLAB: set the figure's Name property.
-        warning('sgtitle not available. Setting figure Name. May overlap.');
-        set(gcf, 'Name', sprintf('S: %s, C: %s', serialNumStr, cableNameStr));
+    % --- Figure and Axes Setup ---
+    if ~isempty(ax_handle) && isgraphics(ax_handle, 'axes')
+        % Use provided axes handle
+        axes(ax_handle); % Make the provided axes current
+        fig_handle = get(ax_handle, 'Parent');
+        hold(ax_handle, 'on');
+        
+        % When plotting to a specific axis, simplify to plot only the first available frequency
+        if ~isempty(frequenciesToPlot)
+            frequenciesToPlot = frequenciesToPlot(1); 
+            disp(['Plotting to provided axes. Using first available frequency: ', char(frequenciesToPlot(1))]);
+        else
+            text(ax_handle, 0.5, 0.5, 'No data for selected frequency', 'HorizontalAlignment', 'center');
+            hold(ax_handle, 'off');
+            return;
+        end
+        numPlots = 1;
+        
+    else
+        % Original behavior: create a new figure
+        fig_handle = figure;
+        try 
+            titleStr = sprintf('Waveforms for Serial: %s, Cable: %s', serialNumStr, cableNameStr);
+            sgtitle(fig_handle, titleStr); % Set a super title for the entire figure.
+        catch
+            warning('sgtitle not available. Setting figure Name. May overlap.');
+            set(fig_handle, 'Name', sprintf('S: %s, C: %s', serialNumStr, cableNameStr));
+        end
+        
+        tlo = tiledlayout(fig_handle, 'flow', 'TileSpacing', 'compact', 'Padding', 'compact');
+        numPlots = length(frequenciesToPlot);
     end
-    
-    % Use a tiled layout for arranging multiple subplots.
-    % 'flow' allows tiles to fill rows and then columns.
-    % 'compact' reduces spacing and padding.
-    tlo = tiledlayout('flow', 'TileSpacing', 'compact', 'Padding', 'compact');
 
     % Loop through each frequency determined for plotting.
     for i = 1:numPlots
@@ -351,10 +392,15 @@ function plot_livewire_csv(csvFilePath, specificFrequencies, outputFilePath)
         x_data_to_plot = distance_feet_shifted;
         y_data_to_plot = normalized_y_original;
 
-        % Advance to the next tile in the layout for the new plot.
-        nexttile(tlo);
+        % --- Plotting ---
+        current_axes_to_plot_on = [];
+        if ~isempty(ax_handle) && isgraphics(ax_handle, 'axes')
+            current_axes_to_plot_on = ax_handle;
+        else
+            current_axes_to_plot_on = nexttile(tlo);
+        end
         
-        % --- Plot Title and Data ---
+        % --- Plot Title and Data (on current_axes_to_plot_on) ---
         baseTitlePart = char(currentFreq); % Frequency part of the title
         % Format acquisition distance for the title (e.g., "Acq. Dist: 10 ft 5 in").
         acqDistStrPart = 'Acq. Dist: N/A';
@@ -370,14 +416,14 @@ function plot_livewire_csv(csvFilePath, specificFrequencies, outputFilePath)
 
         % Plot the data if available.
         if ~isempty(x_data_to_plot) && ~isempty(y_data_to_plot) && numel(x_data_to_plot) > 0
-            plot(x_data_to_plot, y_data_to_plot);
-            hold on; % Hold the plot to add more lines
-            current_xlim = xlim; % Get current x-axis limits
-            % Draw a vertical line at x=0 (Zero Index) if it's within the plot limits.
+            plot(current_axes_to_plot_on, x_data_to_plot, y_data_to_plot);
+            hold(current_axes_to_plot_on, 'on'); 
+            current_xlim = xlim(current_axes_to_plot_on); 
+            
             if 0 >= current_xlim(1) && 0 <= current_xlim(2)
-                line([0 0], [-1.1, 1.1], 'Color', 'b', 'LineStyle', ':', 'LineWidth', 1, 'DisplayName', 'Zero Index');
+                line(current_axes_to_plot_on, [0 0], [-1.1, 1.1], 'Color', 'b', 'LineStyle', ':', 'LineWidth', 1, 'DisplayName', 'Zero Index');
             end
-            % Draw a vertical line at the acquisition distance if it's valid and within plot limits.
+            
             if ~isnan(numericAcqDistFeet)
                 % Note: The acquisition distance is an absolute point from the original file.
                 % The plot's x-axis is *shifted* by the zero_offset_feet.
@@ -390,7 +436,8 @@ function plot_livewire_csv(csvFilePath, specificFrequencies, outputFilePath)
                 % So, if the plot x-axis is `X_plot = X_absolute - zero_offset_feet`.
                 % A line at `X_absolute = numericAcqDistFeet` should be drawn at `X_plot = numericAcqDistFeet - zero_offset_feet`.
                 % This was not being done. Let's assume for now numericAcqDistFeet is intended to be plotted at its absolute value
-                % on the *shifted* axis. This implies that `DistanceAtAcquisition` is relative to the *display zero*, not necessarily the physical cable end.
+                % on the *shifted* axis. This implies that `DistanceAtAcquisition` is meant to be interpreted
+                % relative to the same origin as the shifted data.
                 % Re-evaluating: The `x_data_to_plot` IS the `distance_feet_shifted`. So the x-axis *is* the shifted distance.
                 % If `DistanceAtAcquisition` is a raw distance marker on the cable (e.g. 50ft from connector),
                 % and the `ZeroIndex` shifts the plot so that `ZeroIndex * UPS` (e.g. 10ft) becomes `x=0`,
@@ -416,37 +463,40 @@ function plot_livewire_csv(csvFilePath, specificFrequencies, outputFilePath)
                                                              % This implies DistanceAtAcquisition is meant to be interpreted
                                                              % relative to the same origin as the shifted data.
                 if acqDistLinePositionOnPlot >= current_xlim(1) && acqDistLinePositionOnPlot <= current_xlim(2)
-                    line([acqDistLinePositionOnPlot acqDistLinePositionOnPlot], [-1.1, 1.1], 'Color', 'b', 'LineStyle', ':', 'LineWidth', 1, 'DisplayName', 'Acq. Distance');
+                    line(current_axes_to_plot_on, [acqDistLinePositionOnPlot acqDistLinePositionOnPlot], [-1.1, 1.1], 'Color', 'b', 'LineStyle', ':', 'LineWidth', 1, 'DisplayName', 'Acq. Distance');
                 end
             end
-            hold off; % Release the plot
+            hold(current_axes_to_plot_on, 'off'); % Release the plot
 
             plotTitleStr = sprintf('%s (%s)', baseTitlePart, acqDistStrPart);
-            axis tight; % Adjust axis limits to fit the data tightly.
+            axis(current_axes_to_plot_on, 'tight');
 
-        else % Case: no data or insufficient data to plot for this frequency after processing.
+        else 
             disp(['Data for frequency ' char(currentFreq) ' is empty or invalid for plotting after processing.']);
             plotTitleStr = sprintf('%s (No Data, %s)', baseTitlePart, acqDistStrPart);
-            plot(NaN, NaN); % Create empty axes for the text and lines.
-            text(0.5, 0.5, 'No Data', 'HorizontalAlignment', 'center', 'Units', 'normalized'); % Display "No Data"
-            xlim([0 10]); % Default x-axis for "No Data" plots.
+            plot(current_axes_to_plot_on, NaN, NaN); 
+            text(current_axes_to_plot_on, 0.5, 0.5, 'No Data', 'HorizontalAlignment', 'center', 'Units', 'normalized'); 
+            xlim(current_axes_to_plot_on, [0 10]); 
             
-            % Attempt to draw Zero Index and Acq. Distance lines on this default "No Data" axis if applicable.
-            current_xlim_no_data = xlim;
-            if 0 >= current_xlim_no_data(1) && 0 <= current_xlim_no_data(2) % Zero Index line
-                line([0 0], [-1.1, 1.1], 'Color', 'b', 'LineStyle', ':', 'LineWidth', 1);
+            current_xlim_no_data = xlim(current_axes_to_plot_on);
+            if 0 >= current_xlim_no_data(1) && 0 <= current_xlim_no_data(2) 
+                line(current_axes_to_plot_on, [0 0], [-1.1, 1.1], 'Color', 'b', 'LineStyle', ':', 'LineWidth', 1);
             end
-            if ~isnan(numericAcqDistFeet) && numericAcqDistFeet >= current_xlim_no_data(1) && numericAcqDistFeet <= current_xlim_no_data(2) % Acq. Distance line
-                line([numericAcqDistFeet numericAcqDistFeet], [-1.1, 1.1], 'Color', 'b', 'LineStyle', ':', 'LineWidth', 1);
+            if ~isnan(numericAcqDistFeet) && numericAcqDistFeet >= current_xlim_no_data(1) && numericAcqDistFeet <= current_xlim_no_data(2) 
+                line(current_axes_to_plot_on, [numericAcqDistFeet numericAcqDistFeet], [-1.1, 1.1], 'Color', 'b', 'LineStyle', ':', 'LineWidth', 1);
             end
         end
         
-        title(plotTitleStr); % Set the title for the subplot.
-        xlabel('Distance (ft)');
-        ylabel('Normalized Value');
-        ylim([-1.1, 1.1]); % Set fixed y-axis limits for normalized data.
-        grid on; % Display grid lines.
+        title(current_axes_to_plot_on, plotTitleStr); 
+        xlabel(current_axes_to_plot_on, 'Distance (ft)');
+        ylabel(current_axes_to_plot_on, 'Normalized Value');
+        ylim(current_axes_to_plot_on, [-1.1, 1.1]); 
+        grid(current_axes_to_plot_on, 'on'); 
 
+    end
+    
+    if ~isempty(ax_handle) && isgraphics(ax_handle, 'axes')
+        hold(ax_handle, 'off'); % Ensure hold is off for the provided axes
     end
 
     % Display messages if no plots were generated.
@@ -461,22 +511,24 @@ function plot_livewire_csv(csvFilePath, specificFrequencies, outputFilePath)
         try
             % Set PaperPositionMode to 'auto' for better sizing in the saved file,
             % or explicitly set figure position/size for consistent output.
-            set(fig, 'PaperPositionMode', 'auto'); 
+            set(fig_handle, 'PaperPositionMode', 'auto'); 
             % Example of explicit sizing:
-            % set(fig, 'Position', [100, 100, 1024, 768]); % X, Y, Width, Height
+            % set(fig_handle, 'Position', [100, 100, 1024, 768]); % X, Y, Width, Height
             
-            saveas(fig, outputFilePath);
+            saveas(fig_handle, outputFilePath);
             fprintf('Plot saved to %s\n', outputFilePath);
-            close(fig); % Close the figure after saving to free resources and prevent display.
+            if isempty(ax_handle) % Only close if we created the figure
+                close(fig_handle); 
+            end
         catch ME_save
             warning('Failed to save plot to %s: %s', outputFilePath, ME_save.message);
-            if ishandle(fig)
-                close(fig); % Ensure figure is closed even if saving failed.
+            if isempty(ax_handle) && ishandle(fig_handle) % Only close if we created the figure
+                close(fig_handle); 
             end
         end
     else
-        % If not saving to file, the figure will remain open for viewing by default.
-        % No explicit action needed here unless figure visibility was previously turned off.
+        % If not saving to file, and not plotting to a given ax_handle, the figure will remain open.
+        % If an ax_handle was given, the caller manages the figure's visibility.
     end
 
 end
