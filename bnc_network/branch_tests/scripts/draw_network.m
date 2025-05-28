@@ -166,12 +166,8 @@ function fig_handle = draw_network(networks_csv, network_ids, output_folder, ax_
     end
 
     function draw_text_with_bg(ax, x, y, str, varargin)
-    % Draw text with a fixed-size white rectangle background for readability
-        rect_w = 2; % fixed width
-        rect_h = 1; % fixed height
-        % Draw white rectangle
-        rectangle(ax, 'Position', [x-rect_w/2, y-rect_h/2, rect_w, rect_h], ...
-            'FaceColor', 'w', 'EdgeColor', 'none', 'Curvature', 0.1);
+    % Draw text (background removed)
+        % Rectangle drawing removed
         % Draw text centered
         text(ax, x, y, str, varargin{:}, 'HorizontalAlignment','center', 'VerticalAlignment','middle');
     end
@@ -197,8 +193,8 @@ function fig_handle = draw_network(networks_csv, network_ids, output_folder, ax_
         dy = segLen * sin(angle);
         endPt = startPt + [dx, dy];
 
-        % Draw the wire as a line
-        plot(ax, [startPt(1), endPt(1)], [startPt(2), endPt(2)], 'k-', 'LineWidth', 2);
+        % Draw the wire as a line (now nice blue, thinner)
+        plot(ax, [startPt(1), endPt(1)], [startPt(2), endPt(2)], '-', 'Color', [0.2 0.5 0.8], 'LineWidth', 1.5);
         % Draw label at midpoint, offset vertically for left-right layout
         midPt = (startPt + endPt)/2;
         labelOffset = [0, 0.25]; % more vertical space
@@ -222,21 +218,27 @@ function fig_handle = draw_network(networks_csv, network_ids, output_folder, ax_
                 draw_branch_recursive(ax, children{c}, endPt, childAngles(c), depth+1, parentMap, termMap, lenMap, c, baseLen*0.95);
             end
         else
-            % Termination: draw a fixed-size red rectangle with white text at end, no brackets
+            % Termination: Draw a shape or text based on type
+            term_text = '';
             if termMap.isKey(wire)
-                t = termMap(wire); % just the letter, no brackets
-            else
-                t = '';
+                term_text = strtrim(termMap(wire));
             end
-            termOffset = [0.25, 0]; % more horizontal space
-            rect_w = 0.7; % fixed width for termination
-            rect_h = 0.35; % fixed height for termination
-            % Draw red rectangle
-            rectangle(ax, 'Position', [endPt(1)+termOffset(1)-rect_w/2, endPt(2)+termOffset(2)-rect_h/2, rect_w, rect_h], ...
-                'FaceColor', 'r', 'EdgeColor', 'none', 'Curvature', 0.1);
-            % Draw the white text on top, centered
-            text(ax, endPt(1)+termOffset(1), endPt(2)+termOffset(2), t, ...
-                'FontSize', 10, 'FontWeight','bold', 'Color','w', 'HorizontalAlignment','center', 'VerticalAlignment','middle');
+
+            markerSize = 8;
+            shapeColor = 'r'; % Red for all termination markers/text
+
+            switch lower(term_text)
+                case 'open'
+                    plot(ax, endPt(1), endPt(2), 'o', 'MarkerEdgeColor', shapeColor, 'MarkerSize', markerSize, 'LineWidth', 1.5);
+                case 'short'
+                    plot(ax, endPt(1), endPt(2), 'o', 'MarkerEdgeColor', shapeColor, 'MarkerFaceColor', shapeColor, 'MarkerSize', markerSize);
+                case 'terminated'
+                    plot(ax, endPt(1), endPt(2), 's', 'MarkerEdgeColor', shapeColor, 'MarkerFaceColor', shapeColor, 'MarkerSize', markerSize);
+                otherwise
+                    % Draw the termination text in red font, centered
+                    text(ax, endPt(1), endPt(2), term_text, ...
+                        'FontSize', 10, 'FontWeight','bold', 'Color',shapeColor, 'HorizontalAlignment','center', 'VerticalAlignment','middle');
+            end
         end
     end
 
