@@ -22,8 +22,8 @@ function process_lws_folder(inputDir)
     end
 
     % Define subdirectory names
-    csvSubDirName = 'CSV_Files';
-    plotsSubDirName = 'Plot_Files';
+    csvSubDirName = 'CSV';
+    plotsSubDirName = 'Plot';
 
     % Create full paths for subdirectories
     outputCsvDir = fullfile(inputDir, csvSubDirName);
