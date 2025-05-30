@@ -1,14 +1,14 @@
-% plot_trend_vs_error_intersection.m
+% plot_data_with_baseline.m
 %
 % Plots PeakMag vs. MinDiffDepth from a "trend" CSV, fits an exponential curve,
 % plots an error level based on PeakMag from an "error" CSV,
 % and calculates and annotates their intersection.
 %
 % Usage:
-%   plot_trend_vs_error_intersection('path/to/trend_analysis.csv', 'path/to/error_analysis.csv');
-%   plot_trend_vs_error_intersection(); % prompts for files
+%   plot_data_with_baseline('path/to/trend_analysis.csv', 'path/to/error_analysis.csv');
+%   plot_data_with_baseline(); % prompts for files
 
-function plot_trend_vs_error_intersection(trendCsvPath, errorCsvPath)
+function plot_data_with_baseline(trendCsvPath, errorCsvPath)
 
 % --- Handle Input Arguments ---
 if nargin < 1 || isempty(trendCsvPath)
@@ -85,10 +85,12 @@ hold on;
 % Plot scatter for trend data
 uniqueDepths = unique(x_trend);
 colors = lines(numel(uniqueDepths));
-for idx = 1:numel(uniqueDepths)
-    d = uniqueDepths(idx);
-    scatter(x_trend(x_trend==d), y_trend_peakmag(x_trend==d), 36, colors(idx,:), 'filled', 'DisplayName', sprintf('Trend Data (Depth %d)', d));
-end
+% Plot all trend data points with a single legend entry
+scatter(x_trend, y_trend_peakmag, 36, 'filled', 'DisplayName', 'Trend Data');
+% for idx = 1:numel(uniqueDepths)
+%     d = uniqueDepths(idx);
+%     scatter(x_trend(x_trend==d), y_trend_peakmag(x_trend==d), 36, colors(idx,:), 'filled', 'DisplayName', sprintf('Trend Data (Depth %d)', d));
+% end
 
 % --- Exponential Fit for Trend Data: y = a*exp(b*x) ---
 fitMask = y_trend_peakmag > 0 & ~isnan(y_trend_peakmag) & ~isnan(x_trend);
@@ -184,12 +186,11 @@ end
 
 % --- Finalize Plot ---
 hold off;
-xlabel('MinDiffDepth (from trend data)');
-ylabel('PeakMag');
-title({'PeakMag Trend vs. Error Level'});
+xlabel('# of Branches Deep');
+ylabel('Peak Change in Magnitude');
+title('Effect of Wire on SSTDR vs Branch Depth');
 grid on;
 legend('show', 'Location', 'best');
-sgtitle('Network PeakMag: Trend Analysis and Error Level Intersection');
 
 % --- Save Figure ---
 [~, trendBaseName, ~] = fileparts(trendCsvPath);

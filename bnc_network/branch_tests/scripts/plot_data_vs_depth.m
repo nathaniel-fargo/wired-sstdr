@@ -1,11 +1,11 @@
-% plot_stats_vs_depth.m
+% plot_data_vs_depth.m
 %
 % Plots PeakMag, AreaUnsquared, and AreaSquared against MinDiffDepth from a network analysis CSV.
 % Usage:
-%   plot_stats_vs_depth('path/to/networks_n_analysis.csv');
-%   plot_stats_vs_depth(); % prompts for file
+%   plot_data_vs_depth('path/to/networks_n_analysis.csv');
+%   plot_data_vs_depth(); % prompts for file
 
-function plot_stats_vs_depth(csvPath, statsToPlot)
+function plot_data_vs_depth(csvPath, statsToPlot)
 
 if nargin < 1 || isempty(csvPath)
     [f,p] = uigetfile('*.csv', 'Select analysis CSV');
