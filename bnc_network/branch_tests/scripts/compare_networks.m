@@ -43,7 +43,7 @@ assert(isfile(networkCsvPath),   "Network CSV file not found: %s", networkCsvPat
 assert(isfolder(dataDirPath),    "Data directory not found: %s",   dataDirPath);
 
 %% ------------------------- read network catalogue ---------------------- %%
-netTbl = readtable(networkCsvPath, "TextType", "string");
+netTbl = readtable(networkCsvPath, "Delimiter", ";", "TextType", "string");
 requiredCols = ["ID","Network"];
 if ~all(ismember(requiredCols, netTbl.Properties.VariableNames))
     error("Network CSV must contain columns: %s", strjoin(requiredCols, ", "));
@@ -211,8 +211,8 @@ end  % main function
 %% ====================================================================== %%
 function [tokens, depths] = parseNetworkString(netStr)
 %PARSE_NETWORK_STRING  Extract wire identifiers and their depths from a
-% network definition string such as "{D03{E00[O]}...}".
-% The grammar (see README) is a series of nested braces "{<wire> ...}".
+% network definition string such as "{D03{E00[O],F01[S]}...}".
+% The grammar (see README) uses nested braces "{<wire> ...}" with comma-separated children.
 % We simply scan the string character-by-character, maintaining a depth
 % counter and recording any occurrence of an identifier matching the regex
 % /[A-Z][0-9]{2}/ that is *outside* square-bracket termination annotations.

@@ -1,9 +1,15 @@
 % plot_data_vs_depth.m
 %
 % Plots PeakMag, AreaUnsquared, and AreaSquared against MinDiffDepth from a network analysis CSV.
+%
+% Author: Nathaniel Fargo
+% Date: 2025-05-28
+% Org: U of U WIRED
+%
 % Usage:
 %   plot_data_vs_depth('path/to/networks_n_analysis.csv');
 %   plot_data_vs_depth(); % prompts for file
+%   plot_data_vs_depth(csvPath, {'PeakMag','AreaUnsquared'});
 
 function plot_data_vs_depth(csvPath, statsToPlot)
 

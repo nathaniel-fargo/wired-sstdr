@@ -4,6 +4,10 @@
 % plots an error level based on PeakMag from an "error" CSV,
 % and calculates and annotates their intersection.
 %
+% Author: Nathaniel Fargo
+% Date: 2025-05-28
+% Org: U of U WIRED
+%
 % Usage:
 %   plot_data_with_baseline('path/to/trend_analysis.csv', 'path/to/error_analysis.csv');
 %   plot_data_with_baseline(); % prompts for files

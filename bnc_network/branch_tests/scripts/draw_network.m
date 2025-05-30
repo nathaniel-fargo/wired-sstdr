@@ -45,7 +45,7 @@ function fig_handle = draw_network(networks_csv, network_ids, output_folder, ax_
 
     % -------------------------------------------------------------------------
     % Read CSV files ----------------------------------------------------------
-    netTbl   = readtable(networks_csv,  'Delimiter', ',');
+    netTbl   = readtable(networks_csv,  'Delimiter', ';', 'TextType', 'string');
     logsTbl  = readtable(logsPath,      'Delimiter', ',');
 
     % Build a map: wire ID -> length string ----------------------------------
@@ -87,13 +87,28 @@ function fig_handle = draw_network(networks_csv, network_ids, output_folder, ax_
     for ni = 1:numel(idxs)
         n = idxs(ni);
         try
-            id  = netTbl{n, varNames{1}}{1};
+            % Extract ID - handle both cell arrays and string arrays
+            if iscell(netTbl{n, varNames{1}})
+                id = netTbl{n, varNames{1}}{1};
+            else
+                id = netTbl{n, varNames{1}};
+            end
         catch
             id  = sprintf('#%d', n);
         end
-        netStr = netTbl{n, varNames{2}}{1};
+        
+        % Extract network string - handle both cell arrays and string arrays
+        if iscell(netTbl{n, varNames{2}})
+            netStr = netTbl{n, varNames{2}}{1};
+        else
+            netStr = netTbl{n, varNames{2}};
+        end
+        
+        % Convert to char array for consistency
+        netStr = char(netStr);
+        netStr = strtrim(netStr);  % Remove leading/trailing whitespace
 
-        fprintf('Parsing network %s...\n', id);
+        fprintf('Parsing network %s: %s...\n', char(id), netStr);
 
         [nodeList, edgePairs, terminations] = parse_network_string(netStr);
 
@@ -267,7 +282,7 @@ function fig_handle = draw_network(networks_csv, network_ids, output_folder, ax_
 
             % ---- Read wire name --------------------------------------------
             start = pos;
-            while pos <= len && ~ismember(str(pos), ['[', '{', '}', ' '])
+            while pos <= len && ~ismember(str(pos), ['[', '{', '}', ',', ' '])
                 pos = pos + 1;
             end
             wire = str(start:pos-1);
@@ -293,10 +308,33 @@ function fig_handle = draw_network(networks_csv, network_ids, output_folder, ax_
                 pos = pos + 1; % consume ']'
             end
 
-            % ---- Parse zero or more child branches -------------------------
-            while pos <= len && str(pos) == '{'
-                child = parseNode();
-                edges(end+1, :) = {wire, child}; %#ok<AGROW>
+            % ---- Parse child branches (comma-separated within braces) -----
+            if pos <= len && str(pos) == '{'
+                pos = pos + 1; % consume opening '{'
+                
+                % Parse comma-separated children until closing '}'
+                while pos <= len && str(pos) ~= '}'
+                    % Each child in the comma-separated list could be:
+                    % 1. Simple wire with termination: WireID[term]
+                    % 2. Wire with its own nested children: WireID{...}
+                    
+                    child = parseCommaListItem();
+                    edges(end+1, :) = {wire, child}; %#ok<AGROW>
+                    
+                    % Check for comma or end
+                    if pos <= len && str(pos) == ','
+                        pos = pos + 1; % consume ','
+                    elseif pos <= len && str(pos) == '}'
+                        break; % end of children list
+                    else
+                        error('Expected "," or "}" after child for wire %s at position %d', wire, pos);
+                    end
+                end
+                
+                if pos > len || str(pos) ~= '}'
+                    error('Expected closing "}" for children of wire %s', wire);
+                end
+                pos = pos + 1; % consume closing '}'
             end
 
             % ---- Expect closing '}' ----------------------------------------
@@ -304,6 +342,65 @@ function fig_handle = draw_network(networks_csv, network_ids, output_folder, ax_
                 error('Expected "}" for wire %s (position %d)', wire, pos);
             end
             pos = pos + 1; % consume '}'
+        end
+        
+        function [wire] = parseCommaListItem()
+            % Parse an item in a comma-separated list - could be simple or have nested children
+            
+            % ---- Read wire name --------------------------------------------
+            start = pos;
+            while pos <= len && ~ismember(str(pos), ['[', '{', '}', ',', ' '])
+                pos = pos + 1;
+            end
+            wire = str(start:pos-1);
+            if isempty(wire)
+                error('Empty wire name in comma list at position %d', pos);
+            end
+            if ~any(strcmp(nodes, wire))
+                nodes{end+1} = wire; %#ok<AGROW>
+            end
+
+            % ---- Optional termination --------------------------------------
+            if pos <= len && str(pos) == '['
+                pos = pos + 1; % consume '['
+                tStart = pos;
+                while pos <= len && str(pos) ~= ']'
+                    pos = pos + 1;
+                end
+                if pos > len
+                    error('Unclosed termination bracket for wire %s', wire);
+                end
+                termCode = str(tStart:pos-1);
+                termMap(wire) = termCode;
+                pos = pos + 1; % consume ']'
+            end
+
+            % ---- Check for nested children --------------------------------
+            if pos <= len && str(pos) == '{'
+                % This wire has its own children - parse them in the same way as main parsing
+                pos = pos + 1; % consume opening '{'
+                
+                % Parse comma-separated children until closing '}'
+                while pos <= len && str(pos) ~= '}'
+                    childWire = parseCommaListItem(); % recursive call for each child
+                    edges(end+1, :) = {wire, childWire}; %#ok<AGROW>
+                    
+                    % Check for comma or end
+                    if pos <= len && str(pos) == ','
+                        pos = pos + 1; % consume ','
+                    elseif pos <= len && str(pos) == '}'
+                        break; % end of children list
+                    else
+                        error('Expected "," or "}" after child for wire %s at position %d', wire, pos);
+                    end
+                end
+                
+                if pos > len || str(pos) ~= '}'
+                    error('Expected closing "}" for children of wire %s', wire);
+                end
+                pos = pos + 1; % consume closing '}'
+            end
+            % If no '{', this is just a simple wire (possibly terminated)
         end
 
     % Kick-off parsing --------------------------------------------------------

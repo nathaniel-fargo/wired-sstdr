@@ -42,7 +42,7 @@ function display_network_results(networks_csv_file, livewire_results_folder, spe
 
     % --- Read Networks Data ---
     try
-        netTable = readtable(networks_csv_file, 'Delimiter', ',', 'TextType', 'string');
+        netTable = readtable(networks_csv_file, 'Delimiter', ';', 'TextType', 'string');
     catch ME
         error('Failed to read networks CSV file: %s\n%s', networks_csv_file, ME.message);
     end
