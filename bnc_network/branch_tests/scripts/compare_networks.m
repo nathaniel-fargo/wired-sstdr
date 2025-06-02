@@ -54,10 +54,12 @@ numNets = height(netTbl);
 % Parse every network once and cache tokens / depth per network.
 netTokens  = cell(numNets,1);   % cell{idx} -> string array of tokens
 netDepths  = cell(numNets,1);   % matching depth values
+netTerms   = cell(numNets,1);   % matching termination annotations per token
 for r = 1:numNets
-    [toks, deps]    = parseNetworkString(netTbl.Network(r));
+    [toks, deps, terms] = parseNetworkString(netTbl.Network(r));
     netTokens{r}    = toks;
     netDepths{r}    = deps; %#ok<NASGU>  % kept in case depth reporting needed
+    netTerms{r}     = terms;
 end
 
 
@@ -74,12 +76,25 @@ waveCache   = containers.Map();   % key = network ID -> struct with fields:
 for i = 1:numNets-1
     idA   = netTbl.ID(i);
     toksA = netTokens{i};
+    termsA = netTerms{i};
     for j = i+1:numNets
         idB   = netTbl.ID(j);
         toksB = netTokens{j};
+        termsB = netTerms{j};
 
-        % --- difference metric (# wires not shared) -------------------- %
-        diffWires = setdiff(union(toksA, toksB), intersect(toksA, toksB));
+        % --- difference metric (# wires not shared, including termination) ---- %
+        rawUnion    = union(toksA, toksB);
+        rawIntersect= intersect(toksA, toksB);
+        diffWires   = setdiff(rawUnion, rawIntersect);
+        for k = 1:numel(rawIntersect)
+            w = rawIntersect(k);
+            termA = termsA(toksA == w);
+            termB = termsB(toksB == w);
+            if termA ~= termB
+                diffWires(end+1) = w;
+            end
+        end
+        diffWires = unique(diffWires, "stable");
         nDiff     = numel(diffWires);
         
         % --- compute minimum depth of differing wires --- %
@@ -209,7 +224,7 @@ end
 end  % main function
 
 %% ====================================================================== %%
-function [tokens, depths] = parseNetworkString(netStr)
+function [tokens, depths, terms] = parseNetworkString(netStr)
 %PARSE_NETWORK_STRING  Extract wire identifiers and their depths from a
 % network definition string such as "{D03{E00[O],F01[S]}...}".
 % The grammar (see README) uses nested braces "{<wire> ...}" with comma-separated children.
@@ -220,6 +235,7 @@ function [tokens, depths] = parseNetworkString(netStr)
     if ismissing(netStr) || strlength(netStr)==0
         tokens = string.empty;
         depths = double.empty;
+        terms  = string.empty;
         return;
     end
 
@@ -228,6 +244,7 @@ function [tokens, depths] = parseNetworkString(netStr)
     d      = -1;                % depth before seeing first '{' will become 0
     tokens = string.empty;
     depths = double.empty;
+    terms  = string.empty;      % termination annotation per token
     inTerm = false;             % inside [...] termination annotation
 
     i = 1;
@@ -249,9 +266,26 @@ function [tokens, depths] = parseNetworkString(netStr)
             otherwise
                 if ~inTerm && ch>='A' && ch<='Z' && i+2 <= n && isstrprop(s(i+1),'digit') && isstrprop(s(i+2),'digit')
                     tok = s(i:i+2);
-                    tokens(end+1) = string(tok); %#ok<AGROW>
-                    depths(end+1) = d;          %#ok<AGROW>
-                    i = i + 3;  % skip past token
+                    % extract termination annotation if present
+                    term = "";
+                    if i+3 <= n && s(i+3) == '['
+                        k = i+4;
+                        while k <= n && s(k) ~= ']'
+                            k = k + 1;
+                        end
+                        if k <= n && s(k) == ']'
+                            term = s(i+4:k-1);
+                            i_next = k + 1;
+                        else
+                            i_next = i + 3;
+                        end
+                    else
+                        i_next = i + 3;
+                    end
+                    tokens(end+1) = string(tok);   %#ok<AGROW>
+                    depths(end+1) = d;            %#ok<AGROW>
+                    terms(end+1)  = string(term); %#ok<AGROW>
+                    i = i_next;
                 else
                     i = i + 1;  % move on
                 end
