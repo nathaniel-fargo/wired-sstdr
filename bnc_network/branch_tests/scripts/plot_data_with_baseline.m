@@ -1,7 +1,7 @@
 % plot_data_with_baseline.m
 %
-% Plots PeakMag vs. MinDiffDepth from a "trend" CSV, fits an exponential curve,
-% plots an error level based on PeakMag from an "error" CSV,
+% Plots specified metric vs. MinDiffDepth from a "trend" CSV, fits an exponential curve,
+% plots an error level based on the same metric from an "error" CSV,
 % and calculates and annotates their intersection.
 %
 % Author: Nathaniel Fargo
@@ -9,10 +9,12 @@
 % Org: U of U WIRED
 %
 % Usage:
-%   plot_data_with_baseline('path/to/trend_analysis.csv', 'path/to/error_analysis.csv');
-%   plot_data_with_baseline(); % prompts for files
+%   plot_data_with_baseline('path/to/trend_analysis.csv', 'path/to/error_analysis.csv', 'PeakMag');
+%   plot_data_with_baseline('path/to/trend_analysis.csv', 'path/to/error_analysis.csv', 'AreaNorm');
+%   plot_data_with_baseline('path/to/trend_analysis.csv', 'path/to/error_analysis.csv', 'AreaSquared');
+%   plot_data_with_baseline(); % prompts for files and metric
 
-function plot_data_with_baseline(trendCsvPath, errorCsvPath)
+function plot_data_with_baseline(trendCsvPath, errorCsvPath, metric)
 
 % --- Handle Input Arguments ---
 if nargin < 1 || isempty(trendCsvPath)
@@ -27,15 +29,32 @@ if nargin < 2 || isempty(errorCsvPath)
     errorCsvPath = fullfile(p_error,f_error);
 end
 
+if nargin < 3 || isempty(metric)
+    % Prompt user to select metric
+    validMetrics = {'PeakMag', 'AreaNorm', 'AreaSquared'};
+    [selection, ok] = listdlg('PromptString', 'Select metric to analyze:', ...
+                              'SelectionMode', 'single', ...
+                              'ListString', validMetrics);
+    if ~ok, disp('No metric selected.'); return; end
+    metric = validMetrics{selection};
+end
+
+% Validate metric
+validMetrics = {'PeakMag', 'AreaNorm', 'AreaSquared'};
+if ~ismember(metric, validMetrics)
+    error('Invalid metric "%s". Must be one of: %s', metric, strjoin(validMetrics, ', '));
+end
+
 assert(isfile(trendCsvPath), 'Trend CSV file not found: %s', trendCsvPath);
 assert(isfile(errorCsvPath), 'Error CSV file not found: %s', errorCsvPath);
 
 % --- Load and Process Trend Data ---
 trendTbl = readtable(trendCsvPath);
 fprintf('Loaded trend data from: %s\n', trendCsvPath);
+fprintf('Using metric: %s\n', metric);
 
 % Remove rows with NaN in relevant columns for trend data
-trendRelevantCols = {'MinDiffDepth','PeakMag'};
+trendRelevantCols = {'MinDiffDepth', metric};
 trendRowMask = true(height(trendTbl),1);
 for k = 1:numel(trendRelevantCols)
     if ismember(trendRelevantCols{k}, trendTbl.Properties.VariableNames)
@@ -47,59 +66,57 @@ end
 trendTbl = trendTbl(trendRowMask, :);
 
 if isempty(trendTbl)
-    error('No valid data rows found in trend CSV after NaN removal for MinDiffDepth and PeakMag.');
+    error('No valid data rows found in trend CSV after NaN removal for MinDiffDepth and %s.', metric);
 end
 
 x_trend = trendTbl.MinDiffDepth;
-y_trend_peakmag = trendTbl.PeakMag;
+y_trend_metric = trendTbl.(metric);
 
-fprintf('\nSummary statistics for Trend PeakMag:\n');
-fprintf('  Mean:   %.4g\n', mean(y_trend_peakmag, 'omitnan'));
-fprintf('  Median: %.4g\n', median(y_trend_peakmag, 'omitnan'));
-fprintf('  Std:    %.4g\n', std(y_trend_peakmag, 'omitnan'));
+fprintf('\nSummary statistics for Trend %s:\n', metric);
+fprintf('  Mean:   %.4g\n', mean(y_trend_metric, 'omitnan'));
+fprintf('  Median: %.4g\n', median(y_trend_metric, 'omitnan'));
+fprintf('  Std:    %.4g\n', std(y_trend_metric, 'omitnan'));
 
 % --- Load and Process Error Data ---
 errorTbl = readtable(errorCsvPath);
 fprintf('Loaded error data from: %s\n', errorCsvPath);
 
-% Remove rows with NaN in PeakMag for error data
-if ~ismember('PeakMag', errorTbl.Properties.VariableNames)
-    error('Column "PeakMag" not found in error CSV: %s', errorCsvPath);
+% Remove rows with NaN in the specified metric for error data
+if ~ismember(metric, errorTbl.Properties.VariableNames)
+    error('Column "%s" not found in error CSV: %s', metric, errorCsvPath);
 end
-errorRowMask = ~isnan(errorTbl.PeakMag);
+errorRowMask = ~isnan(errorTbl.(metric));
 errorTbl = errorTbl(errorRowMask, :);
 
 if isempty(errorTbl)
-    error('No valid data rows found in error CSV after NaN removal for PeakMag.');
+    error('No valid data rows found in error CSV after NaN removal for %s.', metric);
 end
 
-y_error_peakmag_values = errorTbl.PeakMag;
-errorLevelPeakMag = mean(y_error_peakmag_values);
+y_error_metric_values = errorTbl.(metric);
+errorLevelMetric = mean(y_error_metric_values);
 
-fprintf('\nSummary statistics for Error PeakMag:\n');
-fprintf('  Mean (used as error level): %.4g\n', errorLevelPeakMag);
-fprintf('  Median: %.4g\n', median(y_error_peakmag_values, 'omitnan'));
-fprintf('  Std:    %.4g\n', std(y_error_peakmag_values, 'omitnan'));
+fprintf('\nSummary statistics for Error %s:\n', metric);
+fprintf('  Mean (used as error level): %.4g\n', errorLevelMetric);
+fprintf('  Median: %.4g\n', median(y_error_metric_values, 'omitnan'));
+fprintf('  Std:    %.4g\n', std(y_error_metric_values, 'omitnan'));
 
+% --- Get metric display properties ---
+[metricLabel, metricUnit] = getMetricDisplayProperties(metric);
 
 % --- Plotting Setup ---
-fig = figure('Name','PeakMag Trend vs. Error Level','Color','w','Position',[100 100 900 600]);
+fig = figure('Name', sprintf('%s Trend vs. Error Level', metric), 'Color', 'w', 'Position', [100 100 900 600]);
 hold on;
 
 % Plot scatter for trend data
 uniqueDepths = unique(x_trend);
 colors = lines(numel(uniqueDepths));
 % Plot all trend data points with a single legend entry
-scatter(x_trend, y_trend_peakmag, 36, 'filled', 'DisplayName', 'Trend Data');
-% for idx = 1:numel(uniqueDepths)
-%     d = uniqueDepths(idx);
-%     scatter(x_trend(x_trend==d), y_trend_peakmag(x_trend==d), 36, colors(idx,:), 'filled', 'DisplayName', sprintf('Trend Data (Depth %d)', d));
-% end
+scatter(x_trend, y_trend_metric, 36, 'filled', 'DisplayName', 'Trend Data');
 
 % --- Exponential Fit for Trend Data: y = a*exp(b*x) ---
-fitMask = y_trend_peakmag > 0 & ~isnan(y_trend_peakmag) & ~isnan(x_trend);
+fitMask = y_trend_metric > 0 & ~isnan(y_trend_metric) & ~isnan(x_trend);
 xFit = x_trend(fitMask);
-yFit = y_trend_peakmag(fitMask);
+yFit = y_trend_metric(fitMask);
 
 a = NaN; b = NaN; Rsq = NaN;
 x_intersect = NaN; y_intersect = NaN;
@@ -147,22 +164,22 @@ if isempty(x_limits) || all(isnan(x_limits)) || x_limits(1) == x_limits(2) % if 
       x_limits = [0, 10]; % Default if no trend data
     end
 end
-plot(x_limits, [errorLevelPeakMag, errorLevelPeakMag], 'b-', 'LineWidth', 2, 'DisplayName', sprintf('Error Level (Mean PeakMag = %.2g)', errorLevelPeakMag));
+plot(x_limits, [errorLevelMetric, errorLevelMetric], 'b-', 'LineWidth', 2, 'DisplayName', sprintf('Error Level (Mean %s = %.2g)', metric, errorLevelMetric));
 xlim(x_limits); % Ensure xlims are set for intersection calculation range
 
 % --- Calculate and Annotate Intersection ---
 if ~isnan(a) && ~isnan(b) && b ~= 0 % Ensure fit was successful and b is not zero
-    % Solve a*exp(b*x) = errorLevelPeakMag
-    % exp(b*x) = errorLevelPeakMag / a
-    % b*x = log(errorLevelPeakMag / a)
-    % x = log(errorLevelPeakMag / a) / b
-    if errorLevelPeakMag > 0 && a > 0 % Arguments to log must be positive
-        x_intersect = log(errorLevelPeakMag / a) / b;
-        y_intersect = errorLevelPeakMag; % or a * exp(b * x_intersect)
+    % Solve a*exp(b*x) = errorLevelMetric
+    % exp(b*x) = errorLevelMetric / a
+    % b*x = log(errorLevelMetric / a)
+    % x = log(errorLevelMetric / a) / b
+    if errorLevelMetric > 0 && a > 0 % Arguments to log must be positive
+        x_intersect = log(errorLevelMetric / a) / b;
+        y_intersect = errorLevelMetric; % or a * exp(b * x_intersect)
 
         fprintf('\nIntersection Point:\n');
         fprintf('  MinDiffDepth (x) = %.4g\n', x_intersect);
-        fprintf('  PeakMag (y)      = %.4g\n', y_intersect);
+        fprintf('  %s (y)      = %.4g\n', metric, y_intersect);
 
         % Plot intersection point if it's within the plotted x-range
         current_xlim = xlim;
@@ -175,14 +192,14 @@ if ~isnan(a) && ~isnan(b) && b ~= 0 % Ensure fit was successful and b is not zer
             fprintf('  Intersection point (%.4g, %.4g) is outside the current plot x-range [%.2f, %.2f].\n', x_intersect, y_intersect, current_xlim(1), current_xlim(2));
         end
     else
-        fprintf('  Cannot calculate intersection: errorLevelPeakMag / a is not positive (%.2g / %.2g).\n', errorLevelPeakMag, a);
+        fprintf('  Cannot calculate intersection: errorLevelMetric / a is not positive (%.2g / %.2g).\n', errorLevelMetric, a);
     end
 elseif ~isnan(a) && ~isnan(b) && b == 0 % Case: exponential fit is a horizontal line y = a
-     if abs(a - errorLevelPeakMag) < 1e-9 % Effectively a == errorLevelPeakMag
-        fprintf('\nIntersection: Exponential fit (y=%.2g) is essentially the same as the error level (y=%.2g).\nLines overlap.\n', a, errorLevelPeakMag);
+     if abs(a - errorLevelMetric) < 1e-9 % Effectively a == errorLevelMetric
+        fprintf('\nIntersection: Exponential fit (y=%.2g) is essentially the same as the error level (y=%.2g).\nLines overlap.\n', a, errorLevelMetric);
         % No single intersection point to plot in this case, or infinite.
     else
-        fprintf('\nNo intersection: Exponential fit is a horizontal line y=%.2g, and error level is y=%.2g.\nLines are parallel.\n', a, errorLevelPeakMag);
+        fprintf('\nNo intersection: Exponential fit is a horizontal line y=%.2g, and error level is y=%.2g.\nLines are parallel.\n', a, errorLevelMetric);
     end
 else
     fprintf('\nCannot calculate intersection because exponential fit was not successful.\n');
@@ -191,7 +208,7 @@ end
 % --- Finalize Plot ---
 hold off;
 xlabel('# of Branches Deep');
-ylabel('Peak Change in Magnitude');
+ylabel(sprintf('%s%s', metricLabel, metricUnit));
 title('Effect of Wire on SSTDR vs Branch Depth');
 grid on;
 legend('show', 'Location', 'best');
@@ -203,13 +220,13 @@ legend('show', 'Location', 'best');
 outDirTrend = fileparts(trendCsvPath); 
 if isempty(outDirTrend), outDirTrend = pwd; end
 
-outFile = fullfile(outDirTrend, sprintf('%s_vs_%s_PeakMag_intersection.png', trendBaseName, errorBaseName));
+outFile = fullfile(outDirTrend, sprintf('%s_vs_%s_%s_intersection.png', trendBaseName, errorBaseName, metric));
 try
     saveas(fig, outFile);
     fprintf('Saved plot to %s\n', outFile);
 catch ME_save
     fprintf('Could not save plot to %s: %s\nAttempting to save in current directory.\n', outFile, ME_save.message);
-    altOutFile = fullfile(pwd, sprintf('%s_vs_%s_PeakMag_intersection.png', trendBaseName, errorBaseName));
+    altOutFile = fullfile(pwd, sprintf('%s_vs_%s_%s_intersection.png', trendBaseName, errorBaseName, metric));
     try
         saveas(fig, altOutFile);
         fprintf('Saved plot to %s\n', altOutFile);
@@ -218,4 +235,22 @@ catch ME_save
     end
 end
 
+end
+
+% --- Helper Function for Metric Display Properties ---
+function [label, unit] = getMetricDisplayProperties(metric)
+    switch metric
+        case 'PeakMag'
+            label = 'Peak Change in Magnitude';
+            unit = '';
+        case 'AreaNorm'
+            label = 'Normalized Area Under Curve';
+            unit = '';
+        case 'AreaSquared'
+            label = 'Squared Area Under Curve';
+            unit = '';
+        otherwise
+            label = metric;
+            unit = '';
+    end
 end 

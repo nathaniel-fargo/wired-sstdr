@@ -16,11 +16,11 @@ function compare_networks(networkCsvPath, dataDirPath, diffLevel, generatePlots,
 
 %% ---------------------------- input parsing ---------------------------- %%
 if nargin < 1 || isempty(networkCsvPath)
-    networkCsvPath = "bnc_network/branch_tests/2025-05-22/networks_n.csv";
+    error("Network CSV path is required");
 end
 if nargin < 2 || isempty(dataDirPath)
     % Default to a LiveWire CSV directory that is *relative to the network CSV*
-    dataDirPath = "LiveWire/Static/CSV";
+    error("Data directory path is required");
 end
 if nargin < 3 || isempty(diffLevel)
     diffLevel = 1;
@@ -193,12 +193,12 @@ for i = 1:numNets-1
 
         % -------------- metrics --------------------------------------- %
         peakMag       = max(abs(yDiff));
-        areaUnsquared = trapz(xCommon, yDiff);
+        areaNorm = trapz(xCommon, abs(yDiff));
         areaSquared   = trapz(xCommon, yDiff.^2);
 
         % -------------- store result ---------------------------------- %
         resultsCell(end+1, :) = {idA, idB, strjoin(diffWires, ";"), nDiff, ...
-                                 freqChosen, peakMag, areaUnsquared, areaSquared, minDiffDepth};
+                                 freqChosen, peakMag, areaNorm, areaSquared, minDiffDepth};
 
         % -------------- optional plot --------------------------------- %
         if generatePlots
@@ -211,7 +211,7 @@ end
 if ~isempty(resultsCell)
     outTbl = cell2table(resultsCell, 'VariableNames', ...
         {'NetworkA','NetworkB','DifferingWires','NumWireDiff', ...
-         'Frequency','PeakMag','AreaUnsquared','AreaSquared','MinDiffDepth'});
+         'Frequency','PeakMag','AreaNorm','AreaSquared','MinDiffDepth'});
 
     [outDir, baseName, ~] = fileparts(networkCsvPath);
     outFile = fullfile(outDir, baseName + "_analysis.csv");
