@@ -1,0 +1,7 @@
+ID;Distance (in);Notes
+Z00;;Calibration (signal to end of coax)
+T00;1.7;
+T01;2.9;
+T02;4.0;
+T03;5.1;
+T04;6.2;
