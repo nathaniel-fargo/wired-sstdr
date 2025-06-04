@@ -23,13 +23,25 @@ function process_lws_folder(inputDir)
 
     % Define subdirectory names
     csvSubDirName = 'CSV';
-    plotsSubDirName = 'Plot';
+    plotsSubDirName = 'Plots';
 
-    % Create full paths for subdirectories
-    outputCsvDir = fullfile(inputDir, csvSubDirName);
-    outputPlotsDir = fullfile(inputDir, plotsSubDirName);
+    % Rename the input directory to 'LWS' and update inputDir
+    parentDir = fileparts(inputDir);
+    newLwsDir = fullfile(parentDir, 'LWS');
+    if ~exist(newLwsDir, 'dir')
+        fprintf('Renaming input directory %s to %s...\n', inputDir, newLwsDir);
+        movefile(inputDir, newLwsDir);
+    else
+        fprintf('Directory %s already exists. Cannot rename %s.\n', newLwsDir, inputDir);
+        error('Renaming failed: target directory already exists.');
+    end
+    inputDir = newLwsDir;
 
-    % Create subdirectories if they don\'t exist
+    % Create full paths for subdirectories in parent directory
+    outputCsvDir = fullfile(parentDir, csvSubDirName);
+    outputPlotsDir = fullfile(parentDir, plotsSubDirName);
+
+    % Create subdirectories if they don't exist
     if ~exist(outputCsvDir, 'dir')
         fprintf('CSV output directory %s does not exist. Creating it...\n', outputCsvDir);
         mkdir(outputCsvDir);
