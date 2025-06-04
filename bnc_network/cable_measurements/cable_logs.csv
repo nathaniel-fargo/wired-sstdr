@@ -1,10 +1,10 @@
-Cable,Length,"Type (B: BNC, C: Cut)",Notes
+Cable,Length,"Type (B: BNC, C: Cut, S: SMA)",Notes
 A00,4ft,B,Orange Marker
 A01,4ft,B,Orange Marker
 A02,"3ft 11in",B,Orange Marker
 A03,4ft,B,Orange Marker
 B00,"5ft 4in",B,
-B01,3ft,B,
+B01,"3ft",B,
 B02,"1ft 10in",B,
 B03,"3ft 10in",B,
 B04,"3ft 9in",B,
@@ -14,11 +14,11 @@ B07,"3ft 10in",B,
 B08,"10ft 8in",B,
 B09,"17ft 4in",B,
 B10,"17ft 4in",B,
-B11,""
+B11,"3ft",B,
 C00,"2ft 6in",B,white
 C01,"7ft 4in",B,white
-C02,"",B,white
-C03,"",B,white
+C02,"25ft 10in",B,white
+C03,"35ft 7in",B,white
 D00,30ft,B,
 D01,"10ft 9in",B,
 D02,"14ft 1in",B,
@@ -27,6 +27,8 @@ D04,45ft,B,
 D05,"25ft 8in",B,
 D06,"29ft 8in",B,
 D07,"27ft 1in",B,
+D08,"",B,
+D09,"",B,
 E00,"69ft 9in",BC,
 E01,"5ft 4in",BC,
 E02,"22ft 7in",BC,
@@ -38,4 +40,7 @@ E07,"4ft 2in",BC,
 E08,"1ft",BC,
 E09,"1ft",BC,
 E10,"1ft",BC,
+F00,"10ft 8in",BS,
+G00,"18ft 11in",S,
+G01,"4ft 5in",S,
 Z00,"0ft 1in",B,
