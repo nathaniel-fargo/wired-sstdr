@@ -31,8 +31,11 @@ function process_lws_folder(inputDir)
     if ~exist(newLwsDir, 'dir')
         fprintf('Renaming input directory %s to %s...\n', inputDir, newLwsDir);
         movefile(inputDir, newLwsDir);
+    else if (newLwsDir == inputDir)
+        fprintf('Directory already LWS, processing...\n')
     else
-        fprintf('Directory %s already exists.\n', newLwsDir);
+        fprintf('Directory %s already exists, moving files over\n', newLwsDir);
+        movefile(inputDir + "/*", newLwsDir)
         % error('Renaming failed: target directory already exists.');
     end
     inputDir = newLwsDir;
