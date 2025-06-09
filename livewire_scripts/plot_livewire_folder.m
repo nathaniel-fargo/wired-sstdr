@@ -34,11 +34,12 @@ function fig_handle = plot_livewire_folder(folderPath, specificFrequency)
             groupNames{i} = fname;
         end
     end
-    uniqueGroups = unique(groupNames, 'stable');
+    % Sort group names alphabetically and assign rainbow colors to each test group
+    uniqueGroups = unique(groupNames); % alphabetical order
     numGroups = numel(uniqueGroups);
 
-    % Assign colors to each group
-    colorMap = lines(numGroups);
+    % Assign rainbow colors via HSV colormap
+    colorMap = hsv(numGroups); % HSV colormap for rainbow colors
     groupColorMap = containers.Map(uniqueGroups, num2cell(colorMap, 2));
 
     % Prepare figure
@@ -49,6 +50,9 @@ function fig_handle = plot_livewire_folder(folderPath, specificFrequency)
     title(sprintf('Waveforms at %s', specificFrequency));
 
     METERS_TO_FEET = 3.28084;
+
+    % Track which groups have been plotted (for legend entries)
+    groupPlotted = false(numGroups,1);
 
     % Loop through files and plot data
     for i = 1:numel(files)
@@ -109,13 +113,20 @@ function fig_handle = plot_livewire_folder(folderPath, specificFrequency)
         zero_offset = zi * ups * (isMetric * METERS_TO_FEET + ~isMetric);
         x_vals = dist_ft - zero_offset;
 
-        % Plot with group-specific color
+        % Plot with group-specific color, labeling only first instance per group
         grp = groupNames{i};
         clr = groupColorMap(grp);
-        plot(x_vals, y_norm, 'Color', clr);
+        groupIdx = find(strcmp(uniqueGroups, grp));
+        if ~groupPlotted(groupIdx)
+            plot(x_vals, y_norm, 'Color', clr, 'DisplayName', uniqueGroups{groupIdx});
+            groupPlotted(groupIdx) = true;
+        else
+            plot(x_vals, y_norm, 'Color', clr, 'HandleVisibility', 'off');
+        end
     end
 
     % Add legend for groups
-    legend(uniqueGroups, 'Location', 'best');
+    % Show legend using DisplayName entries from the first plots
+    legend('show', 'Location', 'best');
     hold off;
 end 
