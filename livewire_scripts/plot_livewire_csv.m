@@ -7,6 +7,8 @@
 % Date: 2025-05-22 % Updated for batch processing
 % Org: U of U WIRED
 %
+% Developed partially with AI assistance.
+%
 % Usage:
 %   plot_livewire_csv('path/to/your_data.csv'); % Display plot
 %   plot_livewire_csv('path/to/your_data.csv', {'48 MHz', '12 MHz'}); % Display specific freqs

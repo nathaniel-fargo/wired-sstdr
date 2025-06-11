@@ -7,8 +7,11 @@
 % Date: 2025-05-21
 % Org: U of U WIRED
 %
+% Developed partially with AI assistance.
+%
 % Usage:
 %   batch_plot_livewire_csvs('path/to/csv_folder', 'path/to/png_output_folder');
+%
 
 
 function batch_plot_livewire_csv(inputCsvDir, outputPngDir)

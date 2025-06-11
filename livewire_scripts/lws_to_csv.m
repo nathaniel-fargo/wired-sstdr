@@ -6,6 +6,8 @@
 % Date: 2025-05-20
 % Org: U of U WIRED 
 %
+% Developed partially with AI assistance.
+%
 % Usage:
 %   lws_to_csv('my_data.lws', 'my_data.csv');
 %   lws_to_csv('my_data.lws', 'output_folder/');

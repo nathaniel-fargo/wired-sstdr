@@ -8,6 +8,8 @@
 % Date: 2025-01-27
 % Org: U of U WIRED
 %
+% Developed partially with AI assistance.
+%
 % Usage:
 %   plot_smooth_livewire('path/to/your_data.csv'); % Display smooth plot
 %   plot_smooth_livewire('path/to/your_data.csv', {'48 MHz', '12 MHz'}); % Display specific freqs
@@ -15,12 +17,14 @@
 %   plot_smooth_livewire('path/to/your_data.csv', {'48 MHz'}, 'path/to/output.png'); % Save specific freq
 %   plot_smooth_livewire(..., ax_handle); % Plot to a given axes handle
 %   plot_smooth_livewire(..., ax_handle, interpolation_factor); % Custom interpolation factor (default: 4)
+%   plot_smooth_livewire(..., ax_handle, interpolation_factor, show_fft); % Also show FFT spectrum (default: false)
+%   plot_smooth_livewire('data.csv', {}, '', [], 4, true); % Show both waveform and FFT plots
 
-function fig_handle = plot_smooth_livewire(csvFilePath, specificFrequencies, outputFilePath, ax_handle, interpolation_factor)
+function fig_handle = plot_smooth_livewire(csvFilePath, specificFrequencies, outputFilePath, ax_handle, interpolation_factor, show_fft)
 
     % Check for the minimum required input argument
     if nargin < 1
-        error('Usage: plot_smooth_livewire(csvFilePath, [specificFrequencies], [outputFilePath], [ax_handle], [interpolation_factor])');
+        error('Usage: plot_smooth_livewire(csvFilePath, [specificFrequencies], [outputFilePath], [ax_handle], [interpolation_factor], [show_fft])');
     end
     
     % Ensure the provided CSV file exists
@@ -42,6 +46,9 @@ function fig_handle = plot_smooth_livewire(csvFilePath, specificFrequencies, out
     end
     if nargin < 5
         interpolation_factor = 4; % Default interpolation factor
+    end
+    if nargin < 6
+        show_fft = false; % Default: don't show FFT plots
     end
     
     % Read the CSV file using detected import options (same as plot_livewire_csv.m)
@@ -263,7 +270,13 @@ function fig_handle = plot_smooth_livewire(csvFilePath, specificFrequencies, out
             set(fig_handle, 'Name', sprintf('Smooth S: %s, C: %s', serialNumStr, cableNameStr));
         end
         
-        tlo = tiledlayout(fig_handle, 'flow', 'TileSpacing', 'compact', 'Padding', 'compact');
+        % Determine layout based on whether FFT plots are requested
+        if show_fft
+            % Create 2 rows: top for waveforms, bottom for FFT
+            tlo = tiledlayout(fig_handle, 2, length(frequenciesToPlot), 'TileSpacing', 'compact', 'Padding', 'compact');
+        else
+            tlo = tiledlayout(fig_handle, 'flow', 'TileSpacing', 'compact', 'Padding', 'compact');
+        end
         numPlots = length(frequenciesToPlot);
     end
 
@@ -372,18 +385,37 @@ function fig_handle = plot_smooth_livewire(csvFilePath, specificFrequencies, out
         [x_unique, ~, idx] = unique(x_sorted);
         y_unique = accumarray(idx, y_sorted, [], @mean);
         
-        % Create evenly spaced grid for interpolation
+        % Since original data is evenly spaced, preserve the spacing
         N_original = length(x_unique);
         if N_original < 4
             warning('Not enough data points for FFT interpolation. Using original data.');
             x_data_to_plot = x_unique;
             y_data_to_plot = y_unique;
         else
-            % Interpolate to evenly spaced grid first
-            x_min = min(x_unique);
-            x_max = max(x_unique);
-            x_even = linspace(x_min, x_max, N_original);
-            y_even = interp1(x_unique, y_unique, x_even, 'linear', 'extrap');
+            % Check if data is already evenly spaced (within tolerance)
+            if N_original > 1
+                dx_values = diff(x_unique);
+                dx_mean = mean(dx_values);
+                dx_std = std(dx_values);
+                is_evenly_spaced = (dx_std / abs(dx_mean)) < 0.01; % 1% tolerance
+            else
+                is_evenly_spaced = true;
+                dx_mean = 1; % Default spacing
+            end
+            
+            if is_evenly_spaced
+                % Data is already evenly spaced, use original spacing
+                dx = dx_mean;
+                x_start = x_unique(1);
+                y_even = y_unique;
+            else
+                % Data is not evenly spaced, interpolate to even grid first
+                x_start = min(x_unique);
+                x_end = max(x_unique);
+                dx = (x_end - x_start) / (N_original - 1);
+                x_even = x_start:dx:x_end;
+                y_even = interp1(x_unique, y_unique, x_even, 'linear', 'extrap');
+            end
             
             % Apply FFT-based interpolation with zero padding
             Y_fft = fft(y_even);
@@ -411,18 +443,25 @@ function fig_handle = plot_smooth_livewire(csvFilePath, specificFrequencies, out
             % Inverse FFT to get interpolated signal
             y_smooth = real(ifft(Y_padded));
             
-            % Create corresponding x values
-            x_smooth = linspace(x_min, x_max, N_new);
+            % Create corresponding x values with same spacing as original data
+            % but with more points due to interpolation
+            dx_new = dx / interpolation_factor;
+            x_smooth = x_start + (0:N_new-1) * dx_new;
             
             x_data_to_plot = x_smooth;
             y_data_to_plot = y_smooth;
         end
 
-        % Plotting
+        % Plotting - Waveform
         if ~isempty(ax_handle) && isgraphics(ax_handle, 'axes')
             current_axes_to_plot_on = ax_handle;
         else
-            current_axes_to_plot_on = nexttile(tlo);
+            if show_fft
+                % Use specific tile position for 2-row layout
+                current_axes_to_plot_on = nexttile(tlo, i); % Top row for waveforms
+            else
+                current_axes_to_plot_on = nexttile(tlo);
+            end
         end
         
         % Plot title formatting
@@ -491,6 +530,54 @@ function fig_handle = plot_smooth_livewire(csvFilePath, specificFrequencies, out
         % Add legend if not plotting to external axes
         if isempty(ax_handle)
             legend(current_axes_to_plot_on, 'Location', 'best');
+        end
+
+        % Plot FFT if requested and not using external axes
+        if show_fft && isempty(ax_handle) && ~isempty(freqData)
+            % Create FFT plot in bottom row
+            fft_axes = nexttile(tlo, i + length(frequenciesToPlot)); % Bottom row
+            
+            % Calculate FFT of the original normalized data
+            if ~isempty(y_data_original) && length(y_data_original) > 1
+                % Compute FFT
+                Y_fft = fft(y_data_original);
+                N_fft = length(Y_fft);
+                
+                % Create frequency axis
+                % Sample rate is 1/dx where dx is the distance spacing
+                if length(x_data_original) > 1
+                    dx = mean(diff(sort(x_data_original))); % Average spacing in feet
+                    fs = 1/dx; % Samples per foot
+                else
+                    fs = 1; % Default
+                end
+                
+                % Frequency vector (cycles per foot)
+                if mod(N_fft, 2) == 0
+                    f = (0:N_fft/2-1) * fs/N_fft; % Only positive frequencies
+                    Y_plot = Y_fft(1:N_fft/2);
+                else
+                    f = (0:(N_fft-1)/2) * fs/N_fft;
+                    Y_plot = Y_fft(1:ceil(N_fft/2));
+                end
+                
+                % Plot magnitude spectrum
+                magnitude = abs(Y_plot);
+                semilogy(fft_axes, f, magnitude, 'b-', 'LineWidth', 1);
+                
+                % Format FFT plot
+                title(fft_axes, sprintf('FFT Magnitude - %s', char(currentFreq)));
+                xlabel(fft_axes, 'Spatial Frequency (cycles/ft)');
+                ylabel(fft_axes, 'Magnitude');
+                grid(fft_axes, 'on');
+                axis(fft_axes, 'tight');
+            else
+                % No data for FFT
+                text(fft_axes, 0.5, 0.5, 'No Data for FFT', 'HorizontalAlignment', 'center', 'Units', 'normalized');
+                title(fft_axes, sprintf('FFT - %s (No Data)', char(currentFreq)));
+                xlabel(fft_axes, 'Spatial Frequency (cycles/ft)');
+                ylabel(fft_axes, 'Magnitude');
+            end
         end
 
     end
