@@ -1,0 +1,34 @@
+metadata_version: 1
+name: Spread Spectrum Time Domain Reflectometry with Lumped Elements on Asymmetric
+  Transmission Lines
+description: Spread spectrum time domain reflectometry (SSTDR) has been traditionally
+  used to detect hard faults (open and short circuit faults) in transmission lines.
+  Prior work has focused on loads at the end of the line with little research on impedances
+  from circuit elements located in the middle of the line (i.e., not at the load)
+  or on only one wire of the line. In this work we consider cases of transmission
+  lines with different impedances on each wire. We refer to lines with the same impedance
+  on both wires (positive and negative) as symmetric. Lines with different impedances
+  on each wire are asymmetric. For highly localized impedances (approximately infinitesimal
+  in length, i.e. with a length significantly smaller than the wavelength of the incident
+  signal), the reflections and their effects on the propagating wave become difficult
+  to describe with traditional transmission line theory. We provide analytical expressions
+  for reflection coefficients for symmetric and asymmetric transmission lines and
+  show that these formulae describe experimental measurements of capacitors and resistors
+  to about 99% accuracy for the magnitudes and 75% for the phases
+tags:
+- Spread Spectrum Time Domain Reflectometry
+- reflectometry
+- transmission line
+- SSTDR
+- lumped elements
+- electromagnetics
+- phase-variation
+- impedance
+authors:
+- name: Ayobami S. Edun
+  affiliations:
+  - name: University of Florida
+- name: Joel B. Harley
+  affiliations:
+  - name: University of Florida
+corresponding_contributor: {}
