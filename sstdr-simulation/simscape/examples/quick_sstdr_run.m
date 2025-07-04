@@ -22,29 +22,29 @@ MODEL_NAME = 'sstdr_basic';  % Change this to your actual model name
 %% CONFIGURATION OPTIONS - Uncomment ONE
 %% ========================================
 
-%% 1. DEFAULT CONFIGURATION (100 kHz carrier, 1 MHz sampling)
+%% 1. DEFAULT CONFIGURATION (100 kHz chip rate, 100 kHz carrier, 400 kHz sampling)
 % sstdr_config('default');
 
-%% 2. FAST SINE WAVE (250 kHz carrier, 2 MHz sampling)
+%% 2. FAST SINE WAVE (250 kHz chip rate, 250 kHz carrier, 1 MHz sampling)
 % sstdr_config('sine_fast');
 
-%% 3. HIGH RESOLUTION (100 kHz carrier, 5 MHz sampling) 
+%% 3. HIGH RESOLUTION (200 kHz chip rate, 200 kHz carrier, 800 kHz sampling) 
 % sstdr_config('high_res');
 
-%% 4. UNMODULATED (no carrier, 1 MHz sampling)
+%% 4. UNMODULATED (125 kHz chip rate, no carrier, 500 kHz sampling)
 % sstdr_config('unmodulated');
 
-%% 5. CUSTOM: 500 kHz carrier, 5 MHz sampling
-% sstdr_custom_config('carrier_freq', 500e3, 'fs', 5e6);
+%% 5. CUSTOM: 200 kHz chip rate, 200 kHz carrier, 800 kHz sampling
+% sstdr_custom_config('chip_rate', 200e3, 'carrier_freq', 200e3, 'fs', 800e3);
 
-%% 6. CUSTOM: 1 MHz carrier, 10 MHz sampling (high frequency)
-sstdr_custom_config('carrier_freq', 10e6, 'fs', 100e6);
+%% 6. CUSTOM: 500 kHz chip rate, 500 kHz carrier, 2 MHz sampling (high frequency)
+sstdr_custom_config('chip_rate', 500e3, 'carrier_freq', 500e3, 'fs', 2e6);
 
-%% 7. CUSTOM: 50 kHz carrier, 2 MHz sampling (long range)
-% sstdr_custom_config('carrier_freq', 50e3, 'fs', 2e6);
+%% 7. CUSTOM: 50 kHz chip rate, 50 kHz carrier, 200 kHz sampling (long range)
+% sstdr_custom_config('chip_rate', 50e3, 'carrier_freq', 50e3, 'fs', 200e3);
 
-%% 8. CUSTOM: Unmodulated, 10 MHz sampling (ultra high resolution)
-% sstdr_custom_config('modulation', 'none', 'fs', 10e6);
+%% 8. CUSTOM: 300 kHz chip rate, unmodulated, 1.2 MHz sampling (ultra high resolution)
+% sstdr_custom_config('chip_rate', 300e3, 'modulation', 'none', 'fs', 1.2e6);
 
 %% 9. INTERACTIVE MODE - Will prompt you for parameters
 % sstdr_custom_config();

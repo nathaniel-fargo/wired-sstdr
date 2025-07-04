@@ -1,8 +1,33 @@
-# SSTDR Simscape Simulation - Organized Structure
+# SSTDR Simulation System
 
-This folder contains a complete SSTDR (Spread Spectrum Time Domain Reflectometry) simulation and analysis workflow for MATLAB/Simscape.
+This directory contains a complete SSTDR (Spread Spectrum Time Domain Reflectometry) simulation system with enhanced frequency control and dual correlation methods.
 
-## 📁 Folder Organization
+## 🎯 Quick Start
+
+### Simple 2-Parameter Setup
+```matlab
+% Just change these two parameters and run:
+MODEL_NAME = 'your_model_name';  % Your Simscape model
+CONFIG_CHOICE = 1;               % Configuration number (1-8)
+run('examples/simple_run.m');
+```
+
+### Three-Frequency Control System
+
+The system now uses **explicit chip rate control** with three key parameters:
+
+1. **Chip Rate** (Hz) - Controls PN sequence timing
+2. **Carrier Frequency** (Hz) - Modulation frequency  
+3. **Sampling Frequency** (Hz) - Digital sampling rate
+
+```matlab
+% New frequency control pattern:
+sstdr_custom_config('chip_rate', 100e3, 'carrier_freq', 100e3, 'fs', 400e3);
+```
+
+**Default Pattern**: `chip_rate = carrier_freq`, `fs = 4 × chip_rate`
+
+## 📁 Folder Structure
 
 ```
 simscape/                          # Main directory (your MATLAB working directory)
@@ -11,16 +36,16 @@ simscape/                          # Main directory (your MATLAB working directo
 ├── run_sstdr_analysis.m          # Main workflow script
 ├── line_test.mat                 # Test data
 ├── functions/                    # Reusable functions
-│   ├── gen_pn_code.m            # PN sequence generation
-│   ├── cross_correlate.m        # Correlation analysis
-│   ├── configure_model_sampling.m # Model configuration
+│   ├── gen_pn_code.m            # PN sequence generation with chip rate control
+│   ├── cross_correlate.m        # Dual-domain correlation analysis
+│   ├── configure_model_sampling.m # Automatic Simscape setup
 │   └── line_params.m            # Line parameter utilities
 ├── config/                      # Configuration files
 │   ├── sstdr_config.m           # Predefined configurations
 │   └── sstdr_custom_config.m    # Custom configuration builder
 ├── examples/                    # Example scripts (start here!)
-│   ├── simple_run.m             # Minimal 2-parameter setup
-│   ├── quick_sstdr_run.m        # Full-featured script
+│   ├── simple_run.m             # 2-parameter quick setup
+│   ├── quick_sstdr_run.m        # Full-featured analysis
 │   ├── compare_configs.m        # Multi-configuration comparison
 │   └── cross_corr_pure.m        # Pure MATLAB correlation demo
 ├── docs/                        # Documentation
@@ -30,78 +55,166 @@ simscape/                          # Main directory (your MATLAB working directo
 └── slprj/                       # MATLAB project files
 ```
 
-## 🚀 Quick Start
+## 🚀 Predefined Configurations
 
-### Option 1: Super Simple (2 parameters)
+| Configuration | Chip Rate | Carrier | Sampling | Use Case |
+|---------------|-----------|---------|----------|----------|
+| `default`     | 100 kHz   | 100 kHz | 400 kHz  | Standard analysis |
+| `sine_fast`   | 250 kHz   | 250 kHz | 1 MHz    | Fast processing |
+| `high_res`    | 200 kHz   | 200 kHz | 800 kHz  | High resolution |
+| `unmodulated` | 125 kHz   | N/A     | 500 kHz  | Baseband analysis |
+
 ```matlab
-cd examples
-open simple_run.m
-% Edit MODEL_NAME and CONFIG_CHOICE
-% Hit run!
+% Load predefined configuration
+sstdr_config('default');        % or 'sine_fast', 'high_res', 'unmodulated'
 ```
 
-### Option 2: Full Featured
+## ⚙️ Custom Configurations
+
+### Basic Custom Setup
 ```matlab
-cd examples
-open quick_sstdr_run.m
-% Edit MODEL_NAME and uncomment one configuration
-% Hit run!
+% Equal chip rate and carrier frequency (recommended)
+sstdr_custom_config('chip_rate', 200e3, 'carrier_freq', 200e3, 'fs', 800e3);
+
+% Unmodulated with custom chip rate
+sstdr_custom_config('chip_rate', 150e3, 'modulation', 'none', 'fs', 600e3);
 ```
 
-### Option 3: Compare Multiple Configurations
+### Advanced Custom Setup
 ```matlab
-cd examples
-open compare_configs.m
-% Edit MODEL_NAME (optional)
-% Hit run!
+% Different carrier and chip rates
+sstdr_custom_config('chip_rate', 100e3, 'carrier_freq', 200e3, 'fs', 800e3);
+
+% Interactive configuration
+sstdr_custom_config();  % Prompts for all parameters
 ```
 
-## 📋 Available Configurations
+## 🔬 Key Features
 
-1. **Default** - 100 kHz carrier, 1 MHz sampling
-2. **Fast** - 250 kHz carrier, 2 MHz sampling  
-3. **High Resolution** - 100 kHz carrier, 5 MHz sampling
-4. **Unmodulated** - No carrier, 1 MHz sampling
-5. **Custom** - Build your own with `sstdr_custom_config()`
+### Dual Correlation Methods
+- **Time Domain**: Traditional `xcorr()` approach
+- **Frequency Domain**: FFT-based `IFFT(X × conj(Y))` approach
+- **Performance**: Frequency domain typically 3-5× faster
 
-## 🔧 Advanced Usage
+### Automatic Frequency Relationships
+- **Interpolation Factor**: Automatically calculated as `fs/chip_rate`
+- **Solver Selection**: Optimized based on modulation type
+- **Stop Time**: Calculated as `PN_length/chip_rate`
 
-### From Root Directory (simscape/)
+### Enhanced Signal Generation
 ```matlab
-% Complete workflow
-run_sstdr_analysis('default', 'my_model');
+% The gen_pn_code function now supports:
+config = gen_pn_code('chip_rate', 100e3, 'carrier_freq', 100e3, 'fs', 400e3);
 
-% Just correlation analysis
-cross_correlate('method', 'both');
-
-% Configure model
-configure_model_sampling('my_model');
+% Key outputs:
+% - config.chip_rate: Actual achieved chip rate
+% - config.settings.interpFactor: Calculated interpolation factor
+% - config.total_duration: Signal duration in seconds
 ```
 
-### From Examples Directory
-All example scripts automatically set up the necessary paths.
+## 📊 Frequency Relationship Guidelines
 
-## 📖 Documentation
+### Recommended Ratios
+- **Sampling Rate**: `fs ≥ 4 × chip_rate` (minimum for good quality)
+- **Carrier Frequency**: `carrier_freq ≥ chip_rate` (typical for SSTDR)
+- **Nyquist Limit**: `carrier_freq < fs/2` (avoid aliasing)
 
-- **Quick Start Guide**: `docs/QUICK_START_SCRIPTS.md`
-- **Integration Guide**: `docs/SIMSCAPE_INTEGRATION_GUIDE.md`
+### Example Configurations
+```matlab
+% Long Range (low frequencies)
+sstdr_custom_config('chip_rate', 50e3, 'carrier_freq', 50e3, 'fs', 200e3);
 
-## 🏗️ Path Management
+% High Resolution (balanced frequencies)  
+sstdr_custom_config('chip_rate', 200e3, 'carrier_freq', 200e3, 'fs', 800e3);
 
-Scripts automatically add the necessary directories to your MATLAB path:
-- `functions/` - Core functionality
-- `config/` - Configuration management
+% High Speed (high frequencies)
+sstdr_custom_config('chip_rate', 500e3, 'carrier_freq', 500e3, 'fs', 2e6);
+```
 
-No manual path setup required when using the provided scripts!
+## 🔧 Integration with Simscape
 
-## 🎯 Key Features
+### Automatic Model Configuration
+```matlab
+% Configure your Simscape model automatically
+configure_model_sampling('your_model_name');
 
-- **Dual Correlation Methods**: Time domain (xcorr) and frequency domain (FFT)
-- **Flexible Modulation**: Sine, cosine, or unmodulated PN sequences
-- **Auto Configuration**: Predefined setups for common use cases
-- **Performance Comparison**: Speed benchmarking between methods
-- **Simscape Integration**: Automatic model configuration
-- **Complete Documentation**: Guides for every use case
+% Run complete analysis
+run_sstdr_analysis('skip', 'your_model_name');
+```
+
+### Exported Variables
+The system automatically exports these variables to base workspace:
+- `sim_fs`: Sampling frequency (Hz)
+- `sim_ts`: Sample time (s)
+- `sim_chip_rate`: Chip rate (Hz)
+- `sim_decimation`: Interpolation factor
+- `pn_timeseries_interp`: Interpolated PN signal for Simscape
+
+## 📈 Performance Comparison
+
+Run multi-configuration comparison:
+```matlab
+run('examples/compare_configs.m');  % Tests all predefined configurations
+```
+
+## 🧪 Testing and Validation
+
+### Test Chip Rate Control
+```matlab
+run('test_chip_rate_control.m');   % Demonstrates new frequency control
+```
+
+### Test Sampling Effects  
+```matlab
+run('test_sampling_effect.m');     % Shows impact of sampling rate changes
+```
+
+## 🆕 What's New in Chip Rate Control
+
+### Before (Implicit Control)
+```matlab
+% Old system: chip rate was fs/interpFactor
+gen_pn_code('fs', 1e6, 'interpFactor', 8);  % chip_rate = 125 kHz (implicit)
+```
+
+### After (Explicit Control)
+```matlab
+% New system: direct chip rate specification
+gen_pn_code('chip_rate', 125e3, 'fs', 500e3);  % interpFactor = 4 (calculated)
+```
+
+### Benefits
+- ✅ **Explicit Control**: Direct specification of signal timing
+- ✅ **Predictable**: Clear relationship between input frequencies  
+- ✅ **Flexible**: Independent control of carrier and chip rates
+- ✅ **Backward Compatible**: Old scripts still work
+- ✅ **Automatic**: Interpolation factor calculated automatically
+
+## 🔍 Troubleshooting
+
+### Common Issues
+1. **"Reference code not found"** → Run `sstdr_config()` first
+2. **"No simulation output found"** → Check measurement block saves to `out.simout`
+3. **Frequency warnings** → Adjust ratios per guidelines above
+
+### Validation
+```matlab
+% Check if configuration loaded correctly
+if exist('sstdr_config', 'var')
+    config = sstdr_config;
+    fprintf('Chip rate: %.1f kHz\n', config.pn_config.chip_rate/1000);
+end
+```
+
+## 📚 Documentation
+
+- **Quick Start**: `docs/QUICK_START_SCRIPTS.md`
+- **Simscape Integration**: `docs/SIMSCAPE_INTEGRATION_GUIDE.md`
+- **Function Reference**: See individual function headers
+
+---
+
+**Note**: The system maintains backward compatibility while providing enhanced control through the new chip rate parameter. All predefined configurations have been updated to use the new pattern where chip rate equals carrier frequency and sampling frequency is 4× the chip rate.
 
 ## 🆘 Troubleshooting
 

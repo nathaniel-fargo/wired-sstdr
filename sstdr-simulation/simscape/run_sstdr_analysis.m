@@ -15,6 +15,7 @@ function run_sstdr_analysis(config_name, sim_model, varargin)
 %   'save_results'  - Save results to file (default: false)
 
 %% Setup paths for organized folder structure
+addpath(genpath('.'))
 current_dir = fileparts(mfilename('fullpath'));
 addpath(fullfile(current_dir, 'functions'));
 addpath(fullfile(current_dir, 'config'));
@@ -25,7 +26,7 @@ if nargin < 1 || isempty(config_name)
 end
 
 if nargin < 2
-    sim_model = '';
+    sim_model = 'sstdr_basic';
 end
 
 p = inputParser;

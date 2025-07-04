@@ -13,25 +13,25 @@ addpath(fullfile(parent_dir, 'config'));
 MODEL_NAME = 'sstdr_basic';  % Set to your Simscape model name, or leave empty to use existing data
 
 %% Quick configuration selection - change the number to try different setups
-CONFIG_CHOICE = 4;  % Change this number (1-8) to try different configurations
+CONFIG_CHOICE = 6;  % Change this number (1-8) to try different configurations
 
 switch CONFIG_CHOICE
-    case 1  % Default
-        sstdr_config('default');                    % 100 kHz carrier, 1 MHz sampling
-    case 2  % Fast
-        sstdr_config('sine_fast');                  % 250 kHz carrier, 2 MHz sampling  
-    case 3  % High Resolution
-        sstdr_config('high_res');                   % 100 kHz carrier, 5 MHz sampling
-    case 4  % Unmodulated
-        sstdr_config('unmodulated');                % No carrier, 1 MHz sampling
-    case 5  % Custom Medium
-        sstdr_custom_config('carrier_freq', 500e3, 'fs', 5e6);   % 500 kHz, 5 MHz
-    case 6  % Custom High Frequency
-        sstdr_custom_config('carrier_freq', 1e6, 'fs', 10e6);    % 1 MHz, 10 MHz
-    case 7  % Custom Long Range
-        sstdr_custom_config('carrier_freq', 50e3, 'fs', 2e6);    % 50 kHz, 2 MHz
-    case 8  % Ultra High Resolution
-        sstdr_custom_config('modulation', 'none', 'fs', 10e6);   % Unmodulated, 10 MHz
+    case 1  % Default: 100 kHz chip rate, 100 kHz carrier, 400 kHz sampling
+        sstdr_config('default');                    
+    case 2  % Fast: 250 kHz chip rate, 250 kHz carrier, 1 MHz sampling
+        sstdr_config('sine_fast');                  
+    case 3  % High Resolution: 200 kHz chip rate, 200 kHz carrier, 800 kHz sampling
+        sstdr_config('high_res');                   
+    case 4  % Unmodulated: 125 kHz chip rate, no carrier, 500 kHz sampling
+        sstdr_config('unmodulated');                
+    case 5  % Custom Medium: 200 kHz chip rate, 200 kHz carrier, 800 kHz sampling
+        sstdr_custom_config('chip_rate', 200e3, 'carrier_freq', 200e3, 'fs', 3200e3);   
+    case 6  % Custom High Frequency: 500 kHz chip rate, 500 kHz carrier, 2 MHz sampling
+        sstdr_custom_config('chip_rate', 1e6, 'carrier_freq', 1e6, 'fs', 64e6);    
+    case 7  % Custom Long Range: 50 kHz chip rate, 50 kHz carrier, 200 kHz sampling
+        sstdr_custom_config('chip_rate', 50e3, 'carrier_freq', 50e3, 'fs', 200e3);    
+    case 8  % Ultra High Resolution: 300 kHz chip rate, unmodulated, 1.2 MHz sampling
+        sstdr_custom_config('chip_rate', 300e3, 'modulation', 'none', 'fs', 1.2e6);   
 end
 
 %% Run analysis

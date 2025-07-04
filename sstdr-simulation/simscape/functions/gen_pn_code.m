@@ -10,8 +10,9 @@ function [config] = gen_pn_code(varargin)
 % Parameters:
 %   'modulation'    - 'none', 'sine', 'cosine' (default: 'none')
 %   'carrier_freq'  - Carrier frequency in Hz (default: 100e3)
+%   'chip_rate'     - Chip rate in Hz (default: 125e3)
 %   'fs'           - Sampling frequency in Hz (default: 1e6)
-%   'interpFactor' - Interpolation factor (default: 8)
+%   'interpFactor' - Interpolation factor (auto-calculated from fs/chip_rate if not specified)
 %   'pn_bits'      - PN sequence bits (default: 10)
 %   'polynomial'   - Primitive polynomial (default: [10 3 0])
 %   'magnitude'    - Signal magnitude (default: 1)
@@ -20,9 +21,10 @@ function [config] = gen_pn_code(varargin)
 %% Parse input arguments
 p = inputParser;
 addParameter(p, 'modulation', 'none', @(x) ismember(x, {'none', 'sine', 'cosine'}));
-addParameter(p, 'carrier_freq', 100e3, @(x) isnumeric(x) && x > 0);
+addParameter(p, 'carrier_freq', 100e3, @(x) isnumeric(x) && x >= 0);
+addParameter(p, 'chip_rate', 125e3, @(x) isnumeric(x) && x > 0);
 addParameter(p, 'fs', 1e6, @(x) isnumeric(x) && x > 0);
-addParameter(p, 'interpFactor', 8, @(x) isnumeric(x) && x > 0);
+addParameter(p, 'interpFactor', [], @(x) isnumeric(x) && x > 0);
 addParameter(p, 'pn_bits', 10, @(x) isnumeric(x) && x > 0);
 addParameter(p, 'polynomial', [10 3 0], @(x) isnumeric(x));
 addParameter(p, 'magnitude', 1, @(x) isnumeric(x) && x > 0);
@@ -30,6 +32,34 @@ addParameter(p, 'export_to_base', true, @islogical);
 
 parse(p, varargin{:});
 cfg = p.Results;
+
+%% Calculate interpolation factor from chip rate and sampling frequency
+if isempty(cfg.interpFactor)
+    % Calculate interpFactor to achieve desired chip rate
+    cfg.interpFactor = round(cfg.fs / cfg.chip_rate);
+    
+    % Verify the calculation makes sense
+    if cfg.interpFactor < 1
+        cfg.interpFactor = 1;
+        warning('Chip rate (%.1f kHz) higher than sampling rate (%.1f kHz). Setting interpFactor=1.', ...
+                cfg.chip_rate/1000, cfg.fs/1000);
+    end
+    
+    % Calculate actual chip rate achieved
+    actual_chip_rate = cfg.fs / cfg.interpFactor;
+    if abs(actual_chip_rate - cfg.chip_rate) / cfg.chip_rate > 0.01  % >1% error
+        fprintf('Note: Requested chip rate %.1f kHz, achieved %.1f kHz (interpFactor=%d)\n', ...
+                cfg.chip_rate/1000, actual_chip_rate/1000, cfg.interpFactor);
+    end
+    
+    % Update config with actual chip rate
+    cfg.chip_rate = actual_chip_rate;
+else
+    % If interpFactor was specified, calculate chip rate from it
+    cfg.chip_rate = cfg.fs / cfg.interpFactor;
+    fprintf('Using specified interpFactor=%d, chip rate = %.1f kHz\n', ...
+            cfg.interpFactor, cfg.chip_rate/1000);
+end
 
 %% Generate PN sequence
 fprintf('Generating %d-bit PN sequence...\n', cfg.pn_bits);
@@ -45,6 +75,7 @@ chips = 2*cfg.magnitude*seq() - cfg.magnitude;  % ±magnitude PN chips
 pn_length = length(chips);
 
 fprintf('PN sequence length: %d chips\n', pn_length);
+fprintf('Chip rate: %.1f kHz (%.3f μs per chip)\n', cfg.chip_rate/1000, 1e6/cfg.chip_rate);
 
 %% Create time vectors
 Ts = 1/cfg.fs;
@@ -118,9 +149,16 @@ config.timeseries_chip = codeTS_chip;
 config.timeseries_interp = codeTS_interp;
 config.pn_length = pn_length;
 config.total_duration = max(t_interp);
+config.chip_rate = cfg.chip_rate;
 
 fprintf('PN code generation complete!\n');
 fprintf('Total duration: %.3f ms\n', config.total_duration*1000);
 fprintf('Modulation: %s\n', cfg.modulation);
+fprintf('Frequency summary:\n');
+fprintf('  - Chip rate: %.1f kHz\n', cfg.chip_rate/1000);
+if ~strcmp(cfg.modulation, 'none')
+    fprintf('  - Carrier frequency: %.1f kHz\n', cfg.carrier_freq/1000);
+end
+fprintf('  - Sampling frequency: %.1f kHz\n', cfg.fs/1000);
 
 end
