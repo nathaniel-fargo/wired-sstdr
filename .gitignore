@@ -2,3 +2,5 @@ bureaucracy/
 literature/
 .DS_Store
 .*lock*.ods*
+*.slxc
+*.autosave
