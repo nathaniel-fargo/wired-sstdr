@@ -125,11 +125,12 @@ end
 % Solver selection based on signal characteristics
 if strcmp(cfg.modulation, 'none')
     solver = 'ode23t';   % Good for discontinuous signals
-    max_step = 1/(10*cfg.chip_rate);  % 10 samples per chip period
 else
     solver = 'ode45';    % Good for smooth signals  
-    max_step = 1/(10*cfg.carrier_freq);  % 10 samples per carrier period
 end
+
+% Max step based on sampling frequency for numerical accuracy
+max_step = 1/(10*cfg.fs);  % 10 simulation steps per sample period
 
 % Stop time: enough for multiple PN periods
 pn_length = 1023;  % 10-bit PN sequence
