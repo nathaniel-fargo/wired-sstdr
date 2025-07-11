@@ -27,7 +27,7 @@ switch CONFIG_CHOICE
     case 5  % Custom Medium: 200 kHz chip rate, 200 kHz carrier, 800 kHz sampling
         sstdr_custom_config('chip_rate', 200e3, 'carrier_freq', 200e3, 'fs', 3200e3);   
     case 6  % Custom High Frequency: 500 kHz chip rate, 500 kHz carrier, 2 MHz sampling
-        sstdr_custom_config('chip_rate', 4e6, 'carrier_freq', 8e6, 'fs', 64e6);    
+        sstdr_custom_config('chip_rate', 4e6, 'carrier_freq', 4e6, 'fs', 64e6);    
     case 7  % Custom Long Range: 50 kHz chip rate, 50 kHz carrier, 200 kHz sampling
         sstdr_custom_config('chip_rate', 50e3, 'carrier_freq', 50e3, 'fs', 200e3);    
     case 8  % Ultra High Resolution: 300 kHz chip rate, unmodulated, 1.2 MHz sampling
