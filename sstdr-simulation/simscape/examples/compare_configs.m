@@ -6,7 +6,8 @@ clear; clc; close all;
 %% Setup paths for organized folder structure
 current_dir = fileparts(mfilename('fullpath'));
 parent_dir = fileparts(current_dir);
-addpath(fullfile(parent_dir, 'functions'));
+addpath(fullfile(parent_dir, 'functions', 'network_generation'));
+addpath(fullfile(parent_dir, 'functions', 'sstdr_simulation'));
 addpath(fullfile(parent_dir, 'config'));
 
 %% 🎯 CHANGE THIS TO YOUR MODEL NAME

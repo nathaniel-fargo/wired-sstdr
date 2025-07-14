@@ -7,7 +7,8 @@ clear; clc; close all;
 fprintf('=== Testing Programmatic Network Generation ===\n\n');
 
 % Add necessary paths
-addpath('functions');
+addpath('functions/network_generation');
+addpath('functions/sstdr_simulation');
 addpath('config');
 
 %% Test 1: Create specific network configurations

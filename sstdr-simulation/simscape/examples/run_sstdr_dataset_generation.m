@@ -1,0 +1,69 @@
+%% SSTDR Dataset Generation Runner
+% This script demonstrates how to create configuration objects and generate
+% SSTDR datasets using the new configuration system.
+
+clear; clc; close all;
+
+%% Example 1: Generate dataset with default configuration
+fprintf('=== Example 1: Default Configuration ===\n');
+
+% Create default configuration (5 MHz chip & carrier, 20 MHz fs, 2047 bits)
+config_default = create_sstdr_dataset_config();
+
+% Generate dataset
+generate_sstdr_dataset(config_default);
+
+%% Example 2: Generate dataset with custom parameters
+fprintf('\n=== Example 2: Custom Configuration ===\n');
+
+% Create custom configuration with 10 MHz parameters
+config_custom = create_sstdr_dataset_config( ...
+    'chip_rate', 10e6, ...
+    'carrier_freq', 10e6, ...
+    'fs', 40e6, ...
+    'pn_bits', 12, ...
+    'num_networks', 20, ...
+    'output_dir', 'sstdr_dataset_10mhz', ...
+    'fault_probability', 0.4, ...
+    'num_segments_range', [8, 25]);
+
+% Generate dataset
+generate_sstdr_dataset(config_custom);
+
+%% Example 3: Generate dataset with high-speed parameters
+fprintf('\n=== Example 3: High-Speed Configuration ===\n');
+
+% Create high-speed configuration
+config_highspeed = create_sstdr_dataset_config( ...
+    'chip_rate', 50e6, ...
+    'carrier_freq', 50e6, ...
+    'fs', 200e6, ...
+    'pn_bits', 10, ...
+    'duration', 100e-6, ...
+    'num_networks', 5, ...
+    'output_dir', 'sstdr_dataset_highspeed', ...
+    'dx', 500, ...
+    'velocity', 2.5e8);
+
+% Generate dataset (with minimal verbose output)
+generate_sstdr_dataset(config_highspeed, 'verbose', false);
+
+%% Example 4: Generate large dataset with progress saving
+fprintf('\n=== Example 4: Large Dataset with Progress Saving ===\n');
+
+% Create configuration for large dataset
+config_large = create_sstdr_dataset_config( ...
+    'num_networks', 100, ...
+    'output_dir', 'sstdr_dataset_large', ...
+    'save_individual', true, ...
+    'save_summary', true);
+
+% Generate dataset with frequent progress saving
+generate_sstdr_dataset(config_large, 'save_progress', 5);
+
+fprintf('\n=== All Examples Complete ===\n');
+fprintf('Generated datasets in the following directories:\n');
+fprintf('  - sstdr_dataset/\n');
+fprintf('  - sstdr_dataset_10mhz/\n');
+fprintf('  - sstdr_dataset_highspeed/\n');
+fprintf('  - sstdr_dataset_large/\n'); 

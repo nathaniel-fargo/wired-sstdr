@@ -8,8 +8,9 @@ clear; clc; close all;
 
 % Setup paths
 current_dir = fileparts(mfilename('fullpath'));
-addpath(fullfile(current_dir, 'functions'));
-addpath(fullfile(current_dir, 'config'));
+addpath(fullfile(current_dir, '..', 'functions', 'network_generation'));
+addpath(fullfile(current_dir, '..', 'functions', 'sstdr_simulation'));
+addpath(fullfile(current_dir, '..', 'config'));
 
 %% Test the new chip rate control system
 fprintf('=== SSTDR Chip Rate Control Test ===\n\n');

@@ -14,6 +14,8 @@ function [config] = sstdr_custom_config(varargin)
 %   'chip_rate'     - Chip rate in Hz (default: 100e3)
 %   'fs'           - Sampling frequency in Hz (default: 400e3)  
 %   'modulation'   - Modulation type: 'sine', 'cosine', 'none' (default: 'sine')
+%   'pn_bits'      - PN sequence bits (default: 10, gives 2^10-1 = 1023 chips)
+%   'duration'     - Simulation duration in seconds (default: auto from PN length)
 %   'name'         - Configuration name (default: auto-generated)
 %   'apply'        - Apply configuration immediately (default: true)
 
@@ -23,6 +25,8 @@ addParameter(p, 'carrier_freq', 100e3, @(x) isnumeric(x) && x >= 0);
 addParameter(p, 'chip_rate', 100e3, @(x) isnumeric(x) && x > 0);
 addParameter(p, 'fs', 400e3, @(x) isnumeric(x) && x > 0);
 addParameter(p, 'modulation', 'sine', @(x) ismember(x, {'none', 'sine', 'cosine'}));
+addParameter(p, 'pn_bits', 10, @(x) isnumeric(x) && x > 0 && x <= 20);
+addParameter(p, 'duration', [], @(x) isempty(x) || (isnumeric(x) && x > 0));
 addParameter(p, 'name', '', @ischar);
 addParameter(p, 'apply', true, @islogical);
 addParameter(p, 'interactive', false, @islogical);
@@ -73,6 +77,23 @@ if cfg.interactive || (nargin == 0)
     fs_input = input(sprintf('Enter sampling frequency (Hz) [default: %.0f]: ', cfg.fs));
     if ~isempty(fs_input)
         cfg.fs = fs_input;
+    end
+    
+    % Get PN sequence bits
+    pn_bits_input = input(sprintf('Enter PN sequence bits [default: %d, gives %d chips]: ', cfg.pn_bits, 2^cfg.pn_bits - 1));
+    if ~isempty(pn_bits_input)
+        cfg.pn_bits = pn_bits_input;
+    end
+    
+    % Get simulation duration
+    if isempty(cfg.duration)
+        default_duration = (2^cfg.pn_bits - 1) / cfg.chip_rate;
+        duration_input = input(sprintf('Enter simulation duration (s) [default: %.2e s]: ', default_duration));
+        if ~isempty(duration_input)
+            cfg.duration = duration_input;
+        else
+            cfg.duration = default_duration;
+        end
     end
     
     name_input = input('Enter configuration name [auto-generate]: ', 's');
@@ -132,9 +153,16 @@ end
 % Max step based on sampling frequency for numerical accuracy
 max_step = 1/(10*cfg.fs);  % 10 simulation steps per sample period
 
-% Stop time: enough for multiple PN periods
-pn_length = 1023;  % 10-bit PN sequence
-stop_time = pn_length / cfg.chip_rate;
+% Stop time: use configured duration or calculate from PN length
+pn_length = 2^cfg.pn_bits - 1;  % Configurable PN sequence length
+if isempty(cfg.duration)
+    stop_time = pn_length / cfg.chip_rate;
+else
+    stop_time = cfg.duration;
+end
+
+% Select appropriate polynomial based on pn_bits
+polynomial = get_pn_polynomial(cfg.pn_bits);
 
 %% Create configuration structure
 config = struct( ...
@@ -144,8 +172,8 @@ config = struct( ...
         'carrier_freq', cfg.carrier_freq, ...
         'chip_rate', cfg.chip_rate, ...
         'fs', cfg.fs, ...
-        'pn_bits', 10, ...
-        'polynomial', [10 3 0], ...
+        'pn_bits', cfg.pn_bits, ...
+        'polynomial', polynomial, ...
         'magnitude', 1 ...
     ), ...
     'correlation_config', struct( ...
@@ -201,4 +229,53 @@ if cfg.apply
     fprintf('✓ Ready for simulation!\n');
 end
 
+end
+
+function polynomial = get_pn_polynomial(pn_bits)
+%GET_PN_POLYNOMIAL Get appropriate primitive polynomial for given PN bits
+%
+% Common primitive polynomials for different PN sequence lengths
+
+switch pn_bits
+    case 3
+        polynomial = [3 2 0];
+    case 4
+        polynomial = [4 3 0];
+    case 5
+        polynomial = [5 3 0];
+    case 6
+        polynomial = [6 5 0];
+    case 7
+        polynomial = [7 6 0];
+    case 8
+        polynomial = [8 6 5 4 0];
+    case 9
+        polynomial = [9 5 0];
+    case 10
+        polynomial = [10 3 0];
+    case 11
+        polynomial = [11 2 0];
+    case 12
+        polynomial = [12 6 4 1 0];
+    case 13
+        polynomial = [13 4 3 1 0];
+    case 14
+        polynomial = [14 5 3 1 0];
+    case 15
+        polynomial = [15 14 0];
+    case 16
+        polynomial = [16 5 3 2 0];
+    case 17
+        polynomial = [17 3 0];
+    case 18
+        polynomial = [18 7 0];
+    case 19
+        polynomial = [19 5 2 1 0];
+    case 20
+        polynomial = [20 3 0];
+    otherwise
+        % Default to 10-bit polynomial
+        polynomial = [10 3 0];
+        warning('Unsupported pn_bits value %d, using default 10-bit polynomial', pn_bits);
+end
 end 

@@ -4,3 +4,5 @@ literature/
 .*lock*.ods*
 *.slxc
 *.autosave
+
+slprf/

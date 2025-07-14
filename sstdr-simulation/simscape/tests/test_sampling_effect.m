@@ -5,8 +5,9 @@ clear; clc; close all;
 
 % Setup paths
 current_dir = fileparts(mfilename('fullpath'));
-addpath(fullfile(current_dir, 'functions'));
-addpath(fullfile(current_dir, 'config'));
+addpath(fullfile(current_dir, '..', 'functions', 'network_generation'));
+addpath(fullfile(current_dir, '..', 'functions', 'sstdr_simulation'));
+addpath(fullfile(current_dir, '..', 'config'));
 
 %% Test different sampling rates with same carrier frequency
 carrier_freq = 10e6;  % Fixed 10 MHz carrier

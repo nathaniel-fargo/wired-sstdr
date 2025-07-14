@@ -6,7 +6,8 @@ clear; clc; close all;
 fprintf('=== Testing Network Builder Improvements ===\n\n');
 
 % Add necessary paths
-addpath('functions');
+addpath('functions/network_generation');
+addpath('functions/sstdr_simulation');
 addpath('config');
 
 %% Test 1: Create a network with both series and shunt faults
