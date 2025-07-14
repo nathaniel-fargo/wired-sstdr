@@ -2,11 +2,11 @@ function analyze_sstdr_dataset(dataset_path, varargin)
 %ANALYZE_SSTDR_DATASET Analyze and visualize SSTDR dataset results
 %
 % Usage:
-%   analyze_sstdr_dataset('sstdr_dataset')                    % Analyze all networks
-%   analyze_sstdr_dataset('sstdr_dataset', 'display', 'single')  % Single display window
-%   analyze_sstdr_dataset('sstdr_dataset', 'display', 'multiple')  % Multiple windows
-%   analyze_sstdr_dataset('sstdr_dataset', 'display', 'first_n', 'n', 5)  % First 5 networks
-%   analyze_sstdr_dataset('sstdr_dataset', 'save_plots', true)  % Save plots to files
+%   analyze_sstdr_dataset('datasets/my_dataset')              % Analyze all networks
+%   analyze_sstdr_dataset('datasets/my_dataset', 'display', 'single')  % Single display window
+%   analyze_sstdr_dataset('datasets/my_dataset', 'display', 'multiple')  % Multiple windows
+%   analyze_sstdr_dataset('datasets/my_dataset', 'display', 'first_n', 'n', 5)  % First 5 networks
+%   analyze_sstdr_dataset('datasets/my_dataset', 'save_plots', true)  % Save plots to files
 %
 % Parameters:
 %   dataset_path - Path to dataset directory or summary file

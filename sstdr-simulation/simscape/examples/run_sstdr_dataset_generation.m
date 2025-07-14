@@ -4,6 +4,9 @@
 
 clear; clc; close all;
 
+% Add paths to dataset generation functions
+addpath('../functions/dataset_generation');
+
 %% Example 1: Generate dataset with default configuration
 fprintf('=== Example 1: Default Configuration ===\n');
 

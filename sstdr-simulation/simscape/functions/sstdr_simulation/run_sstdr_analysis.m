@@ -15,11 +15,11 @@ function run_sstdr_analysis(config_name, sim_model, varargin)
 %   'save_results'  - Save results to file (default: false)
 
 %% Setup paths for organized folder structure
-addpath(genpath('.'))
 current_dir = fileparts(mfilename('fullpath'));
-addpath(fullfile(current_dir, 'functions', 'network_generation'));
-addpath(fullfile(current_dir, 'functions', 'sstdr_simulation'));
-addpath(fullfile(current_dir, 'config'));
+simscape_root = fileparts(fileparts(current_dir));  % Go up two levels from functions/sstdr_simulation
+addpath(fullfile(simscape_root, 'functions', 'network_generation'));
+addpath(fullfile(simscape_root, 'functions', 'sstdr_simulation'));
+addpath(fullfile(simscape_root, 'config'));
 
 %% Parse inputs
 if nargin < 1 || isempty(config_name)

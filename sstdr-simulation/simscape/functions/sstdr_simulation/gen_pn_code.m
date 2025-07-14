@@ -65,10 +65,14 @@ end
 fprintf('Generating %d-bit PN sequence...\n', cfg.pn_bits);
 
 % Create PN sequence generator
+% For polynomial [n a b c 0], the degree is n, so initial conditions need n elements
+polynomial_degree = cfg.polynomial(1);
+initial_conditions = [zeros(1, polynomial_degree-1) 1];
+
 seq = comm.PNSequence( ...
     'Polynomial', cfg.polynomial, ...
     'SamplesPerFrame', 2^cfg.pn_bits - 1, ...
-    'InitialConditions', [zeros(1, cfg.pn_bits-1) 1]);
+    'InitialConditions', initial_conditions);
 
 % Generate one period of PN sequence
 chips = 2*cfg.magnitude*seq() - cfg.magnitude;  % ±magnitude PN chips

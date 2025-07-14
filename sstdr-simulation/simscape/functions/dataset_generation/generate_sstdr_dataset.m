@@ -23,16 +23,27 @@ addParameter(p, 'save_progress', 10, @(x) isnumeric(x) && x > 0);
 parse(p, varargin{:});
 opts = p.Results;
 
-%% Add paths
-addpath('functions/network_generation');
-addpath('functions/sstdr_simulation');
-addpath('config');
+%% Add paths (relative to simscape directory)
+current_dir = fileparts(mfilename('fullpath'));
+simscape_root = fileparts(fileparts(current_dir));  % Go up two levels from functions/dataset_generation
+addpath(fullfile(simscape_root, 'functions', 'network_generation'));
+addpath(fullfile(simscape_root, 'functions', 'sstdr_simulation'));
+addpath(fullfile(simscape_root, 'config'));
 
 %% Disable Simulink warnings and GUI
 warning('off', 'Simulink:Engine:MdlFileShadowedByFile');
 warning('off', 'Simulink:Commands:LoadingOlderModel');
-set_param(0, 'ShowLineWidths', 'off');
-set_param(0, 'HideAutomaticNames', 'on');
+% Note: ShowLineWidths parameter may not exist in all Simulink versions
+try
+    set_param(0, 'ShowLineWidths', 'off');
+catch
+    % Ignore if parameter doesn't exist
+end
+try
+    set_param(0, 'HideAutomaticNames', 'on');
+catch
+    % Ignore if parameter doesn't exist
+end
 
 %% Create output directory
 if ~exist(config.dataset.output_dir, 'dir')

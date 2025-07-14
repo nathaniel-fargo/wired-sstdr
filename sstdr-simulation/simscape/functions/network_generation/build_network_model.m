@@ -256,11 +256,27 @@ for i = 1:network_config.num_segments
             tl_file = network_config.network.transmission_line_file;
         end
         
-        try
-            set_param(tl_block, 'WBfile', ['./' tl_file]);
-            fprintf('      ✓ Linked to %s\n', tl_file);
-        catch ME_mat
-            fprintf('      ⚠ Could not link to %s: %s\n', tl_file, ME_mat.message);
+        % Try different paths for transmission line file
+        tl_paths = {
+            fullfile('config', 'line_params', tl_file),  % New location
+            fullfile('config', tl_file),                 % Config directory
+            tl_file                                      % Current directory
+        };
+        
+        linked = false;
+        for path_idx = 1:length(tl_paths)
+            try
+                set_param(tl_block, 'WBfile', tl_paths{path_idx});
+                fprintf('      ✓ Linked to %s\n', tl_paths{path_idx});
+                linked = true;
+                break;
+            catch ME_mat
+                % Continue to next path
+            end
+        end
+        
+        if ~linked
+            fprintf('      ⚠ Could not link to %s in any location\n', tl_file);
         end
         
         % Store block reference
