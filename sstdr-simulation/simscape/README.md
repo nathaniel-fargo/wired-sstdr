@@ -197,14 +197,6 @@ gen_pn_code('chip_rate', 125e3, 'fs', 500e3);  % interpFactor = 4 (calculated)
 2. **"No simulation output found"** → Check measurement block saves to `out.simout`
 3. **Frequency warnings** → Adjust ratios per guidelines above
 
-### Validation
-```matlab
-% Check if configuration loaded correctly
-if exist('sstdr_config', 'var')
-    config = sstdr_config;
-    fprintf('Chip rate: %.1f kHz\n', config.pn_config.chip_rate/1000);
-end
-```
 
 ## 📚 Documentation
 

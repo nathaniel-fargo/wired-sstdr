@@ -1,13 +1,13 @@
-function [config] = sstdr_custom_config(varargin)
-%SSTDR_CUSTOM_CONFIG Create custom SSTDR configuration with specified frequencies
+function [config] = create_simulation_config(varargin)
+%CREATE_SIMULATION_CONFIG Create custom SSTDR configuration with specified frequencies
 %
 % Usage:
-%   sstdr_custom_config()                                    % Interactive mode
-%   sstdr_custom_config('carrier_freq', 500e3)               % 500 kHz carrier
-%   sstdr_custom_config('chip_rate', 200e3)                  % 200 kHz chip rate
-%   sstdr_custom_config('fs', 5e6)                          % 5 MHz sampling
-%   sstdr_custom_config('carrier_freq', 1e6, 'chip_rate', 1e6, 'fs', 4e6) % All frequencies
-%   config = sstdr_custom_config(...)                       % Return config
+%   create_simulation_config()                                    % Interactive mode
+%   create_simulation_config('carrier_freq', 500e3)               % 500 kHz carrier
+%   create_simulation_config('chip_rate', 200e3)                  % 200 kHz chip rate
+%   create_simulation_config('fs', 5e6)                          % 5 MHz sampling
+%   create_simulation_config('carrier_freq', 1e6, 'chip_rate', 1e6, 'fs', 4e6) % All frequencies
+%   config = create_simulation_config(...)                       % Return config
 %
 % Parameters:
 %   'carrier_freq'  - Carrier frequency in Hz (default: 100e3)
@@ -18,6 +18,9 @@ function [config] = sstdr_custom_config(varargin)
 %   'duration'     - Simulation duration in seconds (default: auto from PN length)
 %   'name'         - Configuration name (default: auto-generated)
 %   'apply'        - Apply configuration immediately (default: true)
+%   'method'       - Cross-correlation method: 'time', 'freq', 'both' (default: 'freq')
+%   'plot_results' - Show correlation plots (default: true)
+%   'positive_only'- Return only positive time lags (default: true)
 
 %% Parse input arguments
 p = inputParser;
@@ -30,6 +33,9 @@ addParameter(p, 'duration', [], @(x) isempty(x) || (isnumeric(x) && x > 0));
 addParameter(p, 'name', '', @ischar);
 addParameter(p, 'apply', true, @islogical);
 addParameter(p, 'interactive', false, @islogical);
+addParameter(p, 'method', 'freq', @(x) ismember(x, {'time', 'freq', 'both'}));
+addParameter(p, 'plot_results', true, @islogical);
+addParameter(p, 'positive_only', true, @islogical);
 
 parse(p, varargin{:});
 cfg = p.Results;
@@ -99,6 +105,42 @@ if cfg.interactive || (nargin == 0)
     name_input = input('Enter configuration name [auto-generate]: ', 's');
     if ~isempty(name_input)
         cfg.name = name_input;
+    end
+    
+    % Get correlation method
+    fprintf('\nCorrelation Analysis Options:\n');
+    fprintf('Available correlation methods:\n');
+    fprintf('  1. Frequency domain (recommended)\n');
+    fprintf('  2. Time domain\n');
+    fprintf('  3. Both (comparison)\n');
+    method_choice = input('Select correlation method (1-3): ');
+    
+    switch method_choice
+        case 1
+            cfg.method = 'freq';
+        case 2
+            cfg.method = 'time';
+        case 3
+            cfg.method = 'both';
+        otherwise
+            cfg.method = 'freq';
+            fprintf('Invalid choice, using frequency domain\n');
+    end
+    
+    % Get plot results option
+    plot_input = input('Show correlation plots? (y/n) [y]: ', 's');
+    if isempty(plot_input) || strcmpi(plot_input, 'y')
+        cfg.plot_results = true;
+    else
+        cfg.plot_results = false;
+    end
+    
+    % Get positive_only option
+    positive_input = input('Return only positive time lags? (y/n) [y]: ', 's');
+    if isempty(positive_input) || strcmpi(positive_input, 'y')
+        cfg.positive_only = true;
+    else
+        cfg.positive_only = false;
     end
 end
 
@@ -177,10 +219,11 @@ config = struct( ...
         'magnitude', 1 ...
     ), ...
     'correlation_config', struct( ...
-        'method', 'freq', ...
+        'method', cfg.method, ...
         'peak_threshold', 0.1, ...
         'normalize', true, ...
-        'plot_results', true ...
+        'plot_results', cfg.plot_results, ...
+        'positive_only', cfg.positive_only ...
     ), ...
     'simulation_config', struct( ...
         'stop_time', stop_time, ...
@@ -203,6 +246,17 @@ fprintf('  - Sampling frequency: %.1f kHz\n', cfg.fs/1000);
 fprintf('  - Sampling ratio: %.1fx (fs/chip_rate)\n', cfg.fs/cfg.chip_rate);
 fprintf('Duration: %.3f ms\n', stop_time*1000);
 fprintf('Solver: %s (max step: %.1f μs)\n', solver, max_step*1e6);
+if cfg.plot_results
+    plot_str = ', plots enabled';
+else
+    plot_str = ', plots disabled';
+end
+if cfg.positive_only
+    lag_str = ', positive lags only';
+else
+    lag_str = ', full lags';
+end
+fprintf('Correlation: %s domain%s%s\n', cfg.method, plot_str, lag_str);
 
 %% Apply configuration if requested
 if cfg.apply

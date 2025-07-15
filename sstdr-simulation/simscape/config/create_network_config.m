@@ -50,7 +50,7 @@ network_config = struct();
 
 % Basic network parameters
 network_config.name = network_name;
-network_config.type = '1D_chain';  % For future extension to branching
+network_config.type = 'line';  % For future extension to branching
 network_config.num_segments = length(load_vector);
 network_config.load_vector = load_vector;
 

@@ -25,7 +25,7 @@ addParameter(p, 'method', 'freq', @(x) ismember(x, {'time', 'freq', 'both'}));
 addParameter(p, 'sim_output', [], @isstruct);
 addParameter(p, 'reference_var', 'pn_interp_modulated', @ischar);
 addParameter(p, 'plot_results', true, @islogical);
-addParameter(p, 'find_peaks', true, @islogical);
+addParameter(p, 'find_peaks', false, @islogical);
 addParameter(p, 'peak_threshold', 0.1, @(x) isnumeric(x) && x >= 0);
 addParameter(p, 'normalize', true, @islogical);
 addParameter(p, 'export_results', true, @islogical);
