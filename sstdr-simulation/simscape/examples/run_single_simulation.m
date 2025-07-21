@@ -10,7 +10,7 @@ addpath(fullfile(parent_dir, 'functions', 'simulation'));
 addpath(fullfile(parent_dir, 'config'));
 
 %% 🎯 CHANGE THIS TO YOUR MODEL NAME
-MODEL_NAME = 'sstdr_basic';  % Set to your Simscape model name, or leave empty to use existing data
+MODEL_NAME = 'models/sstdr_basic';  % Set to your Simscape model name, or leave empty to use existing data
 
 %% Quick configuration selection - change the number to try different setups
 CONFIG_CHOICE = 6;  % Change this number (1-8) to try different configurations

@@ -27,7 +27,7 @@ if nargin < 1 || isempty(config_name)
 end
 
 if nargin < 2
-    sim_model = 'sstdr_basic';
+    sim_model = 'models/sstdr_basic';
 end
 
 p = inputParser;

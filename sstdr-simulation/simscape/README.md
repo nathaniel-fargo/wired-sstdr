@@ -32,27 +32,55 @@ sstdr_custom_config('chip_rate', 100e3, 'carrier_freq', 100e3, 'fs', 400e3);
 ```
 simscape/                          # Main directory (your MATLAB working directory)
 ├── README.md                      # This file
-├── sstdr_basic.slx               # Main Simscape model
-├── run_sstdr_analysis.m          # Main workflow script
-├── line_test.mat                 # Test data
+├── cleanup_models.m              # Utility to clean up scattered model files
+├── models/                       # Simulink models directory
+│   └── sstdr_basic.slx          # Main Simscape model
 ├── functions/                    # Reusable functions
-│   ├── gen_pn_code.m            # PN sequence generation with chip rate control
-│   ├── cross_correlate.m        # Dual-domain correlation analysis
-│   ├── configure_model_sampling.m # Automatic Simscape setup
-│   └── line_params.m            # Line parameter utilities
+│   ├── generation/              # Network generation and simulation
+│   │   ├── build_and_simulate_network.m # Complete workflow
+│   │   ├── generate_sstdr_dataset.m     # Dataset generation
+│   │   └── save_sstdr_dataset.m         # Data saving
+│   ├── network/                 # Network model building
+│   │   ├── build_network_model.m        # Build Simscape models
+│   │   └── create_specific_network.m    # Specific network patterns
+│   └── simulation/              # SSTDR simulation and analysis
+│       ├── gen_pn_code.m               # PN sequence generation
+│       ├── cross_correlate.m           # Dual-domain correlation
+│       ├── run_simulation.m            # Simulation execution
+│       └── run_simulation_analysis.m   # Complete analysis workflow
 ├── config/                      # Configuration files
-│   ├── sstdr_config.m           # Predefined configurations
-│   └── sstdr_custom_config.m    # Custom configuration builder
+│   ├── create_network_config.m   # Network configuration
+│   ├── create_simulation_config.m # Simulation configuration
+│   ├── create_dataset_config.m   # Dataset generation configuration
+│   └── line_params/             # Transmission line parameters
+│       └── line_test.mat        # Test transmission line data
 ├── examples/                    # Example scripts (start here!)
-│   ├── simple_run.m             # 2-parameter quick setup
-│   ├── quick_sstdr_run.m        # Full-featured analysis
-│   ├── compare_configs.m        # Multi-configuration comparison
-│   └── cross_corr_pure.m        # Pure MATLAB correlation demo
-├── docs/                        # Documentation
-│   ├── QUICK_START_SCRIPTS.md   # How to use example scripts
-│   └── SIMSCAPE_INTEGRATION_GUIDE.md # Integration guide
-├── archive/                     # Backup files
+│   ├── run_single_simulation.m  # Single simulation example
+│   ├── build_simulate_single_network.m # Network building example
+│   └── generate_dataset_example.m      # Dataset generation example
+├── datasets/                    # Generated datasets
+├── tests/                       # Test scripts
 └── slprj/                       # MATLAB project files
+```
+
+## 🏗️ Model Organization
+
+All Simulink models are now organized in the `models/` subdirectory:
+
+- **Automatic Model Management**: Models are automatically created in `models/` during simulation
+- **Automatic Cleanup**: Temporary models are automatically deleted after simulation (configurable)
+- **Centralized Storage**: All models are stored in one location for better organization
+
+### Model Lifecycle:
+1. **Creation**: Models are built in memory and optionally saved to `models/`
+2. **Simulation**: Models run from the `models/` directory
+3. **Cleanup**: Temporary models are automatically deleted after use
+
+### Cleanup Utility:
+The `cleanup_models()` function (located in `functions/network/`) can be used to clean up any scattered model files and organize them properly. Add the network functions path and run:
+```matlab
+addpath('functions/network');
+cleanup_models();
 ```
 
 ## 🚀 Predefined Configurations

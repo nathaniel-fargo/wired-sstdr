@@ -11,7 +11,8 @@ function [model_name, model_info] = build_network_model(network_config, varargin
 %                    'model_name' - Name for the model (default: from config)
 %                    'save_model' - Save model to disk (default: false)
 %                    'close_after' - Close model after building (default: false)
-%                    'connect_blocks' - Automatically connect blocks (default: false)
+%                    'connect_blocks' - Automatically connect blocks (default: true)
+%                    'delete_after' - Delete model file after closing (default: false)
 %
 % Output:
 %   model_name - Name of the created Simulink model
@@ -23,7 +24,8 @@ addRequired(p, 'network_config', @isstruct);
 addParameter(p, 'model_name', '', @ischar);
 addParameter(p, 'save_model', false, @islogical);
 addParameter(p, 'close_after', false, @islogical);
-addParameter(p, 'connect_blocks', false, @islogical);
+addParameter(p, 'connect_blocks', true, @islogical);
+addParameter(p, 'delete_after', false, @islogical);
 parse(p, network_config, varargin{:});
 
 % Use network name or generate model name
@@ -70,13 +72,26 @@ try
     
     % Save model if requested
     if p.Results.save_model
-        save_system(model_name);
-        fprintf('Model saved: %s.slx\n', model_name);
+        % Ensure models directory exists
+        models_dir = 'models';
+        if ~exist(models_dir, 'dir')
+            mkdir(models_dir);
+        end
+        
+        % Save model to models subdirectory
+        model_path = fullfile(models_dir, model_name);
+        save_system(model_name, model_path);
+        fprintf('Model saved: %s.slx\n', model_path);
     end
     
     % Close model if requested
     if p.Results.close_after
         close_system(model_name);
+        
+        % Delete model file if requested
+        if p.Results.delete_after
+            delete_model_file(model_name);
+        end
     end
     
     fprintf('Model build complete: %s\n', model_name);
@@ -127,7 +142,7 @@ function model_info = add_sstdr_interface_blocks(model_name, model_info)
 % Try to add custom SSTDR subsystem block first
 try
     % First try to use a custom SSTDR subsystem if it exists
-    sstdr_block = add_block('sstdr_basic/SSTDR_Subsystem', [model_name '/SSTDR_System']);
+    sstdr_block = add_block('sstdr_basic/SSTDR_System', [model_name '/SSTDR_System']);
     set_param(sstdr_block, 'Position', [50, 250, 150, 350]);
     model_info.blocks.sstdr_system = sstdr_block;
     fprintf('  ✓ Added SSTDR subsystem block\n');
@@ -284,11 +299,12 @@ for i = 1:network_config.num_segments
         
         fprintf('    ✓ Segment %d: %.3f m\n', i, network_config.physical.dx);
         
-        % Add fault element if needed
-        fault_info = network_config.faults.(sprintf('segment_%d', i));
-        
-        if ~strcmp(fault_info.element_type, 'none')
-            fault_name = sprintf('Fault_%d_%s', i, fault_info.element_type);
+        % Add fault element if needed (only for non-termination segments)
+        if i < network_config.num_segments
+            fault_info = network_config.faults.(sprintf('segment_%d', i));
+            
+            if ~strcmp(fault_info.element_type, 'none')
+                fault_name = sprintf('Fault_%d_%s', i, fault_info.element_type);
             
             try
                 fault_block = add_block('spsSeriesRLCBranchLib/Series RLC Branch', ...
@@ -326,6 +342,7 @@ for i = 1:network_config.num_segments
             catch ME
                 fprintf('      ✗ Failed to add fault: %s\n', ME.message);
             end
+            end
         end
         
     catch ME
@@ -342,13 +359,22 @@ try
     set_param(term_block, 'Position', [x_pos, start_y, x_pos+60, start_y+40]);
     
     % Configure as pure resistor (R-only configuration)
-    set_param(term_block, 'Resistance', sprintf('%.1f', network_config.physical.Z0));
+    set_param(term_block, 'Resistance', sprintf('%.1e', network_config.physical.termination_impedance));
     set_param(term_block, 'Inductance', '0');
     set_param(term_block, 'Capacitance', 'inf');
     set_param(term_block, 'BranchType', 'R');  % Set to display as R instead of RLC
     
     model_info.blocks.termination = term_block;
-    fprintf('  ✓ Added termination load: %.1f Ω\n', network_config.physical.Z0);
+    
+    % Display termination information
+    if isfield(network_config, 'termination')
+        fprintf('  ✓ Added termination load: %.1e Ω (load value: %.2f, type: %s)\n', ...
+            network_config.physical.termination_impedance, ...
+            network_config.termination.load_value, ...
+            network_config.analysis.termination_type);
+    else
+        fprintf('  ✓ Added termination load: %.1e Ω\n', network_config.physical.termination_impedance);
+    end
     
 catch ME
     fprintf('  ✗ Failed to add termination load: %s\n', ME.message);
@@ -550,8 +576,13 @@ for i = 1:(network_config.num_segments - 1)
         current_ports = get_param(current_block, 'PortHandles');
         next_ports = get_param(next_block, 'PortHandles');
         
-        % Check if there's a series fault after this segment
-        fault_info = network_config.faults.(sprintf('segment_%d', i));
+        % Check if there's a series fault after this segment (only for non-final segments)
+        if i < network_config.num_segments
+            fault_info = network_config.faults.(sprintf('segment_%d', i));
+        else
+            % For the final segment, there's no fault - it connects directly to termination
+            fault_info = struct('element_type', 'none');
+        end
         
         if strcmp(fault_info.element_type, 'series')
             % Connect through series fault
@@ -593,7 +624,7 @@ end
 function connect_fault_elements(model_name, network_config, model_info)
 %CONNECT_FAULT_ELEMENTS Connect shunt fault elements to their individual grounds
 
-for i = 1:network_config.num_segments
+for i = 1:(network_config.num_segments - 1)  % Exclude final segment (termination)
     fault_info = network_config.faults.(sprintf('segment_%d', i));
     
     if strcmp(fault_info.element_type, 'shunt')
@@ -660,6 +691,39 @@ if isfield(model_info.blocks, 'termination')
     end
 end
 
+end
+
+function delete_model_file(model_name)
+%DELETE_MODEL_FILE Delete a Simulink model file from disk
+%
+% This function deletes both the .slx file and any associated .slxc files
+% from the models/ directory.
+
+    % Check both root directory and models/ subdirectory
+    possible_paths = {
+        [model_name '.slx'],
+        [model_name '.slxc'],
+        fullfile('models', [model_name '.slx']),
+        fullfile('models', [model_name '.slxc'])
+    };
+    
+    files_deleted = 0;
+    
+    for i = 1:length(possible_paths)
+        if exist(possible_paths{i}, 'file')
+            try
+                delete(possible_paths{i});
+                fprintf('  ✓ Deleted model file: %s\n', possible_paths{i});
+                files_deleted = files_deleted + 1;
+            catch ME
+                fprintf('  ⚠ Could not delete %s: %s\n', possible_paths{i}, ME.message);
+            end
+        end
+    end
+    
+    if files_deleted == 0
+        fprintf('  ⚠ No model files found to delete for: %s\n', model_name);
+    end
 end
 
  
