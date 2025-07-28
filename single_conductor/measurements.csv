@@ -1,0 +1,14 @@
+ID;Height(in);Termination;Notes
+Z00;NA;O;Calibration (signal to end of coax)
+T00;1.7;O;
+T01;2.9;O;
+T02;4.0;O;
+T03;5.1;O;
+T04;6.2;O;
+T05;7.5;O;
+T10;1.7;S;
+T11;2.9;S;
+T12;4.0;S;
+T13;5.1;S;
+T14;6.2;S;
+T15;7.5;S;
