@@ -11,10 +11,10 @@
 % Usage:
 %   draw_network();
 %   draw_network('my_networks.csv', {'T0','T2'}, 'plots/');
-%   draw_network(networks_csv, network_ids, output_folder, ax_handle);
+%   draw_network(networks_csv, network_ids, output_folder, ax_handle, wire_labels);
 %
 
-function fig_handle = draw_network(networks_csv, network_ids, output_folder, ax_handle)
+function fig_handle = draw_network(networks_csv, network_ids, output_folder, ax_handle, wire_labels)
     % Handle arguments and locate data files ----------------------------------
     if nargin < 1 || isempty(networks_csv)
         thisFile = mfilename('fullpath');
@@ -34,6 +34,9 @@ function fig_handle = draw_network(networks_csv, network_ids, output_folder, ax_
     end
     if nargin < 4
         ax_handle = []; % Default to no axes handle
+    end
+    if nargin < 5 || isempty(wire_labels)
+        wire_labels = true; % Default to showing wire labels
     end
 
     % Cable logs path is always relative to script location
@@ -163,7 +166,7 @@ function fig_handle = draw_network(networks_csv, network_ids, output_folder, ax_
         % Recursively draw the network as lines (left to right)
         baseAngle = 0; % horizontal right
         baseLen = 1.5;    % base length for each segment
-        draw_branch_recursive(current_ax, root, [0,0], baseAngle, 0, parentMap, terminations, lenMap, 0, baseLen);
+        draw_branch_recursive(current_ax, root, [0,0], baseAngle, 0, parentMap, terminations, lenMap, 0, baseLen, wire_labels);
         hold(current_ax, 'off');
 
         % Save if requested and if we created the figure
@@ -187,7 +190,7 @@ function fig_handle = draw_network(networks_csv, network_ids, output_folder, ax_
         text(ax, x, y, str, varargin{:}, 'HorizontalAlignment','center', 'VerticalAlignment','middle');
     end
 
-    function draw_branch_recursive(ax, wire, startPt, angle, depth, parentMap, termMap, lenMap, branchIdx, baseLen)
+    function draw_branch_recursive(ax, wire, startPt, angle, depth, parentMap, termMap, lenMap, branchIdx, baseLen, show_labels)
     % Recursively draw a wire as a line, with junctions and terminations
         % Determine length (for plotting, not to scale)
         if lenMap.isKey(wire)
@@ -210,11 +213,14 @@ function fig_handle = draw_network(networks_csv, network_ids, output_folder, ax_
 
         % Draw the wire as a line (now nice blue, thinner)
         plot(ax, [startPt(1), endPt(1)], [startPt(2), endPt(2)], '-', 'Color', [0.2 0.5 0.8], 'LineWidth', 1.5);
-        % Draw label at midpoint, offset vertically for left-right layout
-        midPt = (startPt + endPt)/2;
-        labelOffset = [0, 0.25]; % more vertical space
-        draw_text_with_bg(ax, midPt(1)+labelOffset(1), midPt(2)+labelOffset(2), sprintf('%s\n%s', wire, lenStr), ...
-            'FontSize', 9);
+        
+        % Draw label at midpoint only if show_labels is true
+        if show_labels
+            midPt = (startPt + endPt)/2;
+            labelOffset = [0, 0.25]; % more vertical space
+            draw_text_with_bg(ax, midPt(1)+labelOffset(1), midPt(2)+labelOffset(2), sprintf('%s\n%s', wire, lenStr), ...
+                'FontSize', 9);
+        end
 
         % If this wire has children, draw a junction dot at end
         if isKey(parentMap, wire)
@@ -230,7 +236,7 @@ function fig_handle = draw_network(networks_csv, network_ids, output_folder, ax_
             end
             children = parentMap(wire);
             for c = 1:nChild
-                draw_branch_recursive(ax, children{c}, endPt, childAngles(c), depth+1, parentMap, termMap, lenMap, c, baseLen*0.95);
+                draw_branch_recursive(ax, children{c}, endPt, childAngles(c), depth+1, parentMap, termMap, lenMap, c, baseLen*0.95, show_labels);
             end
         else
             % Termination: Draw a shape or text based on type

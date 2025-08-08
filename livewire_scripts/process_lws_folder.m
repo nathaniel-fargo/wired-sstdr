@@ -21,13 +21,12 @@ function process_lws_folder(inputDir, interpolate, interpolation_factor)
         error('Usage: process_lws_folder(inputDir, [interpolate], [interpolation_factor])');
     end
     
-    % Set defaults
-    if nargin < 2
-        interpolate = true; % Default to regular processing for backward compatibility
+    % Set defaults (always interpolate going forward)
+    if nargin < 2 || isempty(interpolate)
+        interpolate = true;
     end
-    
-    if nargin < 3
-        interpolation_factor = 4; % Default interpolation factor
+    if nargin < 3 || isempty(interpolation_factor)
+        interpolation_factor = 4;
     end
 
     if ~exist(inputDir, 'dir')
@@ -75,33 +74,17 @@ function process_lws_folder(inputDir, interpolate, interpolation_factor)
         fprintf('Plots output directory %s already exists.\n', outputPlotsDir);
     end
 
-    % Step 1: Convert .lws files to .csv (with or without smoothing)
-    if interpolate
-        fprintf('\nStep 1: Converting .lws files to .csv format with FFT smoothing (factor: %d)...\n', interpolation_factor);
-        fprintf('Input LWS directory: %s\n', inputDir);
-        fprintf('Output CSV directory: %s\n', outputCsvDir);
-        
-        try
-            lws_to_csv_interp(inputDir, outputCsvDir, interpolation_factor);
-            fprintf('Successfully converted .lws files to interpolated .csv files.\n');
-        catch ME
-            fprintf('ERROR during LWS to CSV conversion with interpolation: %s\n', ME.message);
-            fprintf('Aborting further processing.\n');
-            return;
-        end
-    else
-        fprintf('\nStep 1: Converting .lws files to .csv format (no smoothing)...\n');
-        fprintf('Input LWS directory: %s\n', inputDir);
-        fprintf('Output CSV directory: %s\n', outputCsvDir);
-        
-        try
-            lws_to_csv(inputDir, outputCsvDir);
-            fprintf('Successfully converted .lws files to .csv files.\n');
-        catch ME
-            fprintf('ERROR during LWS to CSV conversion: %s\n', ME.message);
-            fprintf('Aborting further processing.\n');
-            return;
-        end
+    % Step 1: Convert .lws files to .csv (always interpolated)
+    fprintf('\nStep 1: Converting .lws files to .csv format with FFT interpolation (factor: %d)...\n', interpolation_factor);
+    fprintf('Input LWS directory: %s\n', inputDir);
+    fprintf('Output CSV directory: %s\n', outputCsvDir);
+    try
+        lws_to_csv(inputDir, outputCsvDir, interpolation_factor); % unified
+        fprintf('Successfully converted .lws files to interpolated .csv files.\n');
+    catch ME
+        fprintf('ERROR during LWS to CSV conversion: %s\n', ME.message);
+        fprintf('Aborting further processing.\n');
+        return;
     end
 
     % Step 2: Generate plots from .csv files
@@ -118,10 +101,6 @@ function process_lws_folder(inputDir, interpolate, interpolation_factor)
     end
 
     % Summary
-    if interpolate
-        fprintf('\nProcessing complete for folder: %s (with FFT smoothing, factor: %d)\n', inputDir, interpolation_factor);
-    else
-        fprintf('\nProcessing complete for folder: %s (no smoothing)\n', inputDir);
-    end
+    fprintf('\nProcessing complete for folder: %s (FFT interpolation factor: %d)\n', inputDir, interpolation_factor);
 
 end 

@@ -1,5 +1,5 @@
 bureaucracy/
-literature/
+# literature/
 .DS_Store
 .*lock*.ods*
 *.slxc

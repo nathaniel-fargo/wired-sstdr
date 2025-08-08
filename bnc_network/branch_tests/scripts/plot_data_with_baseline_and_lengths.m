@@ -14,6 +14,7 @@
 %   plot_data_with_baseline_and_lengths(); % prompts for files
 
 function plot_data_with_baseline_and_lengths(trendCsvPath, errorCsvPath)
+% DEPRECATED: use plot_data_with_baseline.m for the core analysis.
 
 % --- Handle Input Arguments ---
 if nargin < 1 || isempty(trendCsvPath)
